@@ -74,7 +74,9 @@ def test_auth_and_predict_contract():
             assert client.post("/predict",json=payload,headers={"X-API-Key":"wrong"}).status_code==401
             response=client.post("/predict",json=payload,headers={"X-API-Key":"test-secret"})
             assert response.status_code==200,response.text
-            assert set(response.json())=={"direction","probability","confidence","model","horizon","forecast_close","latency_ms"}
+            assert set(response.json())=={"direction","probability","probabilities","confidence","model","horizon","forecast_close","latency_ms"}
+            assert set(response.json()["probabilities"])=={"UP","DOWN","SIDEWAYS"}
+            assert sum(response.json()["probabilities"].values())==pytest.approx(1.0)
             assert response.json()["model"]=="kronos"
             assert client.post("/predict",json={**payload,"horizon":99},headers={"X-API-Key":"test-secret"}).status_code==422
     finally:settings.ml_api_key=old

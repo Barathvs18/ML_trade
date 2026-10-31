@@ -1,0 +1,20 @@
+AlgoPredict Kronos benchmark (real weights; PyTorch threads=2)
+Model: NeoQuasar/Kronos-small; context=512; device=cpu
+Cold start (script entry through model load): 49.222s; model load segment: 46.698s
+RSS after model load: 361.6 MiB
+Measured requests per case: 5; input: 200 deterministic synthetic candles
+
+| Horizon | Sample paths | p50 (ms) | p95 (ms) | RSS after predictions (MiB) |
+|---:|---:|---:|---:|---:|
+| 5 | 5 | 579.8 | 630.9 | 379.9 |
+| 5 | 10 | 1194.8 | 1246.9 | 380.0 |
+| 5 | 20 | 2429.6 | 2434.8 | 380.4 |
+| 10 | 5 | 1072.0 | 1107.4 | 383.3 |
+| 10 | 10 | 2131.3 | 2338.2 | 383.5 |
+| 10 | 20 | 4373.8 | 4499.6 | 383.9 |
+| 30 | 5 | 589.5 | 661.1 | 384.0 |
+| 30 | 10 | 1187.2 | 1226.3 | 384.0 |
+| 30 | 20 | 2427.6 | 2474.3 | 384.2 |
+
+RSS after all predictions: 384.2 MiB
+Latency includes path voting and is measured after one warmup per case.

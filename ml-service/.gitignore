@@ -1,2 +1,4 @@
 # Hugging Face caches contain model weights; do not commit them.
 .model-cache/
+data/*.csv
+data/.yfinance-cache/

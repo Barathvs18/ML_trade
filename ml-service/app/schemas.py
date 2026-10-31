@@ -81,6 +81,7 @@ class PredictRequest(BaseModel):
 class PredictResponse(BaseModel):
     direction:Literal["UP","DOWN","SIDEWAYS"]
     probability:float=Field(ge=0,le=1)
+    probabilities:dict[Literal["UP","DOWN","SIDEWAYS"],float]
     confidence:Literal["low","medium","high"]
     model:Literal["kronos"]
     horizon:int

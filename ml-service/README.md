@@ -31,7 +31,7 @@ Run the test suite with `.venv\Scripts\python.exe -m pytest -q`.
 | `DEVICE` | `cpu` | Deployment device. Kronos is explicitly loaded on CPU. |
 | `KRONOS_MODEL` | `NeoQuasar/Kronos-small` | Hugging Face model ID (`small`, `base`, or `mini`). |
 | `KRONOS_TOKENIZER` | `NeoQuasar/Kronos-Tokenizer-base` | Matching tokenizer ID; mini requires `NeoQuasar/Kronos-Tokenizer-2k`. |
-| `KRONOS_SAMPLES` | `5` | Independent sampled forecasts used for direction probability. |
+| `KRONOS_SAMPLES` | `10` | Independent sampled forecasts used for direction probability. |
 | `HF_TOKEN` | empty | Optional Hugging Face access token. |
 | `MODEL_CACHE_DIR` | `.model-cache` | Downloaded model cache; ignored by Git. |
 | `MAX_CONCURRENCY` | `1` | Maximum concurrent model inference jobs. |
@@ -45,9 +45,22 @@ For real Kronos forecasts, set `MODEL_MOCK=false`. Startup downloads the selecte
 - Horizon 5 uses Kronos on 5-minute candles with a one-bar forecast. Horizon 10 uses the same candles and forecasts two bars ahead, returning the second bar's close. Horizon 30 uses Kronos on 30-minute candles and forecasts one bar ahead.
 - The backend's 30-minute candle builder anchors bars at 09:15 IST, yielding starts at 09:15, 09:45, …, 15:15 (13 bar starts). Input timestamps must follow this grid and be exactly spaced within a session. Overnight input gaps are accepted from the backend's final bar start (15:25 for 5m, 15:15 for 30m) to 09:15 on a later date.
 - Future timestamps roll past the session close to 09:15 on the next weekday, skipping weekends. There is no NSE holiday calendar in this service, so a weekday holiday immediately after a close can still be selected as a forecast timestamp.
-- Kronos returns the mean of paths when `sample_count > 1`. This service therefore makes `KRONOS_SAMPLES` separate calls with `sample_count=1`, uses the mean close as `forecast_close`, and computes probability as the share of sampled paths matching the final direction.
+- Kronos returns the mean of paths when `sample_count > 1`. This service therefore makes `KRONOS_SAMPLES` separate calls with `sample_count=1`. It classifies every sampled final close against the last observed close and the sideways threshold, returns the three class shares in `probabilities`, chooses the class with the highest share (ties resolve to `SIDEWAYS`), sets `probability` to the highest share, and uses the mean sampled close for `forecast_close`. These shares describe agreement among model samples; they are not calibrated probabilities of real-world outcomes.
 - LPatchTST was evaluated and rejected: the advertised fine-tuned checkpoint is missing from its repo revision; the available checkpoint expects 23 input features while the builder produces 20; no fitted scaler statistics are published; and its scalar target is based on an up-to-96-bar oracle outcome rather than a one-bar forecast. Horizon 30 therefore uses Kronos with the same sampled-path probability calculation as the other horizons.
 - Threshold comparison is strict: absolute expected return below `SIDEWAYS_THRESHOLD_PCT` is `SIDEWAYS`; a return exactly on the threshold is `UP` or `DOWN`.
+
+## Benchmark and walk-forward evaluation
+
+Run the repeatable real-weight benchmark and the CSV walk-forward evaluator from this directory with `MODEL_MOCK=false`. The benchmark sets PyTorch to two CPU threads to approximate the Hugging Face free-tier CPU allocation. `scripts/benchmark.py` tests sample counts 5, 10, and 20 and writes results to `reports/benchmark.txt`. Ten samples is the default because horizon 10 measured 2.338s p95 here; 20 samples measured 4.500s p95. It reports cold process-to-model-load time and RSS; loading from an already populated Hugging Face cache is not a first-ever download measurement.
+
+`scripts/fetch_yfinance.py` downloads `^NSEI` 5-minute intraday candles to `data/` and resamples those rows into backend-aligned 30-minute bars (09:15 through 15:15 starts). Yahoo Finance generally limits 5-minute history to about 60 days. The evaluator accepts generic CSVs with `t,o,h,l,c,v`, evaluates chronologically using up to the previous 200 rows, predicts the next one bar (horizons 5 and 30) or two bars (horizon 10), and never shuffles or trains on evaluation rows. Sampled forecasts use a fixed evaluation seed for repeatable reports. Results and every prediction are written to `reports/evaluation.md` and `reports/predictions.csv`. The majority-class baseline uses actual evaluation labels and is a hindsight frequency reference, not a deployable strategy. This is a small historical diagnostic, not evidence of profitable trading; use a larger, independently sourced Upstox dataset before drawing conclusions.
+
+```powershell
+$env:MODEL_MOCK = "false"
+.venv\Scripts\python.exe scripts\fetch_yfinance.py
+.venv\Scripts\python.exe scripts\benchmark.py
+.venv\Scripts\python.exe scripts\evaluate.py --csv-5m data\nsei_5m.csv --csv-30m data\nsei_30m.csv --max-points 30
+```
 
 ## Vendored Kronos source
 

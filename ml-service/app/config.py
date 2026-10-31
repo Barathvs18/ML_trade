@@ -8,7 +8,7 @@ class Settings(BaseSettings):
     device:str="cpu"
     kronos_model:str="NeoQuasar/Kronos-small"
     kronos_tokenizer:str="NeoQuasar/Kronos-Tokenizer-base"
-    kronos_samples:int=Field(default=5,ge=1,le=32)
+    kronos_samples:int=Field(default=10,ge=1,le=32)
     hf_token:str|None=None
     model_cache_dir:str=".model-cache"
     max_concurrency:int=Field(default=1,ge=1,le=64)

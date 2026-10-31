@@ -12,7 +12,23 @@ def test_direction_boundaries_and_probability():
     assert direction_for_return(-.05)=="DOWN"
     result=summarize_forecasts([101,102,103,99],100)
     assert result["direction"]=="UP" and result["probability"]==.75
+    assert result["probabilities"]=={"UP":.75,"DOWN":.25,"SIDEWAYS":0.0}
     assert result["confidence"]=="high"
+    assert result["forecast_close"]==101.25
+
+def test_direction_uses_class_votes_and_sideways_wins_a_tie():
+    assert summarize_forecasts([101,99,102,98],100)=={
+        "direction":"SIDEWAYS",
+        "probability":.5,
+        "probabilities":{"UP":.5,"DOWN":.5,"SIDEWAYS":0.0},
+        "confidence":"medium",
+        "forecast_close":100.0,
+    }
+    assert summarize_forecasts([100.01],100)["probabilities"]=={"UP":0.0,"DOWN":0.0,"SIDEWAYS":1.0}
+
+def test_default_kronos_sample_count_is_ten():
+    from app.config import settings
+    assert settings.kronos_samples==10
 
 def test_router_selects_kronos_interval_and_prediction_steps_for_all_horizons():
     class Kronos:
@@ -25,7 +41,7 @@ def test_router_selects_kronos_interval_and_prediction_steps_for_all_horizons():
     _compute(app,PredictRequest(symbol="RELIANCE",horizon=5,candles=candles()))
     _compute(app,PredictRequest(symbol="RELIANCE",horizon=10,candles=candles()))
     response=_compute(app,PredictRequest(symbol="RELIANCE",horizon=30,candles=candles(12,30)))
-    assert self_len==[(1,5,5,12),(2,5,5,12),(1,5,30,12)]
+    assert self_len==[(1,10,5,12),(2,10,5,12),(1,10,30,12)]
     assert response["model"]=="kronos" and response["horizon"]==30
 
 def test_cache_single_flight_concurrency():
