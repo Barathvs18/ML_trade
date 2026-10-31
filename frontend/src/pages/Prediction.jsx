@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft, ArrowRight, Clock3, Sparkles } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { createPrediction, getPrediction } from "../api/predictions";
 import { getCandles, getQuote, getStocks } from "../api/market";
 import { queryKeys } from "../api/queryKeys";
@@ -68,11 +68,13 @@ function PredictionChart({ symbol, horizon, prediction, onBarClosed }) {
 
 export default function PredictionPage() {
   const queryClient = useQueryClient();
+  const [searchParams] = useSearchParams();
+  const linkedPredictionId = searchParams.get("prediction_id") || "";
   const market = useMarketStatus();
   const [symbol, setSymbol] = useState("RELIANCE");
   const [symbolSearch, setSymbolSearch] = useState("");
   const [horizon, setHorizon] = useState(5);
-  const [latestId, setLatestId] = useState("");
+  const [latestId, setLatestId] = useState(linkedPredictionId);
   const [historySelection, setHistorySelection] = useState(null);
   const [tradeReceipt, setTradeReceipt] = useState(null);
   const stockQuery = useQuery({ queryKey: queryKeys.stocks(""), queryFn: () => getStocks(""), staleTime: 5 * 60_000, retry: 1 });

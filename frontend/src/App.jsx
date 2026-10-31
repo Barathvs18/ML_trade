@@ -1,3 +1,4 @@
+import { lazy, Suspense } from "react";
 import { BrowserRouter, Navigate, Route, Routes, useLocation } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { AuthProvider } from "./auth/AuthProvider";
@@ -7,8 +8,14 @@ import Navbar from "./components/Navbar";
 import Footer from "./components/Footer";
 import ProtectedRoute from "./components/ProtectedRoute";
 import { LoadingCard } from "./components/ui/Skeleton";
-import { DashboardPage, LoginPage, NotFoundPage, PaperTradingPage, PredictionPage, SimpleInfoPage } from "./pages";
-import LandingPage from "./pages/LandingPage";
+
+const LandingPage = lazy(() => import("./pages/LandingPage"));
+const LoginPage = lazy(() => import("./pages/Login"));
+const DashboardPage = lazy(() => import("./pages/Dashboard"));
+const PredictionPage = lazy(() => import("./pages/Prediction"));
+const PaperTradingPage = lazy(() => import("./pages/PaperTrading"));
+const NotFoundPage = lazy(() => import("./pages/UtilityPages").then((module) => ({ default: module.NotFoundPage })));
+const SimpleInfoPage = lazy(() => import("./pages/UtilityPages").then((module) => ({ default: module.SimpleInfoPage })));
 
 const queryClient = new QueryClient({ defaultOptions: { queries: { retry: 1, refetchOnWindowFocus: false } } });
 
@@ -24,18 +31,22 @@ function AppRoutes() {
   const location = useLocation();
   return <>
     <Navbar />
-    <Routes>
-      <Route path="/" element={<LandingPage />} />
-      <Route path="/login" element={<LoginRoute />} />
-      <Route path="/dashboard" element={<ProtectedRoute><DashboardPage /></ProtectedRoute>} />
-      <Route path="/prediction" element={<ProtectedRoute><PredictionPage /></ProtectedRoute>} />
-      <Route path="/paper-trading" element={<ProtectedRoute><PaperTradingPage /></ProtectedRoute>} />
-      <Route path="/about" element={<SimpleInfoPage title="About Stockzo" />} />
-      <Route path="/privacy-policy" element={<SimpleInfoPage title="Privacy Policy" />} />
-      <Route path="/terms-and-conditions" element={<SimpleInfoPage title="Terms & Conditions" />} />
-      <Route path="/contact" element={<SimpleInfoPage title="Contact" />} />
-      <Route path="*" element={<NotFoundPage />} />
-    </Routes>
+    <Suspense fallback={<main className="mx-auto min-h-[62vh] max-w-7xl px-5 py-16 sm:px-8"><LoadingCard lines={4} className="p-8" /></main>}>
+      <Routes>
+        <Route path="/" element={<LandingPage />} />
+        <Route path="/login" element={<LoginRoute />} />
+        <Route path="/dashboard" element={<ProtectedRoute><DashboardPage /></ProtectedRoute>} />
+        <Route path="/prediction" element={<ProtectedRoute><PredictionPage /></ProtectedRoute>} />
+        <Route path="/paper-trading" element={<ProtectedRoute><PaperTradingPage /></ProtectedRoute>} />
+        <Route path="/about" element={<SimpleInfoPage title="About Stockzo" />} />
+        <Route path="/privacy" element={<SimpleInfoPage title="Privacy" />} />
+        <Route path="/privacy-policy" element={<SimpleInfoPage title="Privacy" />} />
+        <Route path="/terms" element={<SimpleInfoPage title="Terms" />} />
+        <Route path="/terms-and-conditions" element={<SimpleInfoPage title="Terms" />} />
+        <Route path="/contact" element={<SimpleInfoPage title="Contact" />} />
+        <Route path="*" element={<NotFoundPage />} />
+      </Routes>
+    </Suspense>
     <Footer />
     <span className="sr-only" aria-live="polite">Page {location.pathname}</span>
   </>;
