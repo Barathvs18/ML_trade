@@ -55,16 +55,16 @@ function HeroChart() {
 
 function Hero() {
   const begin = () => window.location.assign(googleLoginUrl());
-  return <section className="relative mx-auto grid max-w-7xl items-center gap-9 px-5 pb-16 pt-14 sm:px-8 sm:pb-24 sm:pt-20 lg:grid-cols-[0.9fr_1.1fr] lg:gap-10 lg:pt-24">
-    <div className="entrance max-w-xl">
+  return <section className="relative mx-auto grid max-w-7xl grid-cols-1 items-center gap-9 px-5 pb-16 pt-14 sm:px-8 sm:pb-24 sm:pt-20 lg:grid-cols-[0.9fr_1.1fr] lg:gap-10 lg:pt-24">
+    <div className="entrance min-w-0 max-w-xl">
       <div className="flex flex-wrap items-center gap-2"><PaperModeBadge /><MarketStatusPill /></div>
       <p className="mt-8 text-xs font-semibold uppercase tracking-[0.18em] text-emerald-700">Learn the market, at your pace</p>
-      <h1 className="mt-4 text-[2.8rem] font-semibold leading-[1.04] tracking-[-0.055em] text-slate-900 sm:text-6xl">Smarter Trading.<br /><span className="text-emerald-500">Brighter Tomorrow.</span></h1>
+      <h1 className="mt-4 text-[2.25rem] font-semibold leading-[1.04] tracking-[-0.055em] text-slate-900 sm:text-6xl">Smarter Trading.<br /><span className="text-emerald-500">Brighter Tomorrow.</span></h1>
       <p className="mt-5 max-w-lg text-[15px] leading-7 text-slate-600 sm:text-base">Explore Indian markets, learn from experimental model estimates, and practice your decisions with virtual money.</p>
       <div className="mt-7 flex flex-wrap gap-3"><Button size="lg" onClick={begin}>Start Trading Free <ArrowRight size={17} aria-hidden="true" /></Button><a href="#how-it-works" className="button button--secondary button--lg">See how it works <ChevronRight size={17} aria-hidden="true" /></a></div>
       <p className="mt-5 flex items-center gap-2 text-xs text-slate-500"><LockKeyhole size={14} className="text-emerald-700" aria-hidden="true" />Sign in with Google. Practice with simulated funds.</p>
     </div>
-    <div className="relative entrance lg:pl-2"><div className="absolute -inset-5 -z-10 rounded-[42px] bg-gradient-to-br from-emerald-100/50 via-transparent to-slate-200/50 blur-2xl" /><HeroChart /></div>
+    <div className="relative entrance min-w-0 lg:pl-2"><div className="absolute -inset-5 -z-10 rounded-[42px] bg-gradient-to-br from-emerald-100/50 via-transparent to-slate-200/50 blur-2xl" /><HeroChart /></div>
   </section>;
 }
 
@@ -77,8 +77,8 @@ function MarketCard({ stock }) {
   const useRealSeries = Boolean(user && realCandles.length > 1);
   const sparkline = useRealSeries ? realCandles.map((candle) => ({ time: candle.time ?? candle.t ?? candle.start, value: candle.close ?? candle.c })) : sampleCandles.map(({ time, close }) => ({ time, value: close }));
   const price = user ? quote.data?.ltp : sampleCandles.at(-1)?.close;
-  const hasQuote = Number.isFinite(Number(price));
-  const dataLabel = hasQuote ? "Live quote" : useRealSeries ? "Live candles" : "Sample data";
+  const hasQuote = price !== null && price !== undefined && Number.isFinite(Number(price));
+  const dataLabel = user && hasQuote ? "Live quote" : user && useRealSeries ? "Live candles" : "Sample data";
   const lineColor = useRealSeries && realCandles.at(-1)?.close < realCandles[0]?.close ? "#ef4444" : "#10b981";
   return <GlassCard hover className="market-card flex h-full flex-col p-5 sm:p-6">
     <div className="flex items-start justify-between gap-3"><div><p className="text-sm font-semibold text-slate-900">{stock.symbol}</p><p className="mt-1 line-clamp-1 text-xs text-slate-500">{stock.name}</p></div><Badge kind="neutral">{dataLabel}</Badge></div>
@@ -92,7 +92,7 @@ function MarketOverview() {
   const { user } = useAuth();
   return <section id="markets" className="mx-auto max-w-7xl scroll-mt-28 px-5 py-14 sm:px-8 sm:py-20">
     <div className="flex flex-wrap items-end justify-between gap-4"><div><p className="text-xs font-semibold uppercase tracking-[0.15em] text-emerald-700">Market overview</p><h2 className="mt-2 text-3xl font-semibold tracking-tight text-slate-900 sm:text-[2.1rem]">A closer look at the market</h2><p className="mt-3 max-w-xl text-sm leading-6 text-slate-600">Follow a few familiar Nifty 50 names. Quotes use live backend data when you are signed in.</p></div>{!user && <Badge kind="neutral">All charts are sample data</Badge>}</div>
-    <div className="mt-7 grid gap-4 md:grid-cols-3">{SAMPLE_STOCKS.map((stock) => <MarketCard key={stock.symbol} stock={stock} />)}</div>
+    <div className="mt-7 grid grid-cols-1 gap-4 md:grid-cols-3">{SAMPLE_STOCKS.map((stock) => <MarketCard key={stock.symbol} stock={stock} />)}</div>
   </section>;
 }
 
@@ -104,7 +104,7 @@ function HowItWorks() {
   ];
   return <section id="how-it-works" className="scroll-mt-28 border-y border-slate-200/60 bg-white/30 px-5 py-16 sm:px-8 sm:py-20">
     <div className="mx-auto max-w-7xl"><div className="mx-auto max-w-xl text-center"><p className="text-xs font-semibold uppercase tracking-[0.15em] text-emerald-700">How it works</p><h2 className="mt-2 text-3xl font-semibold tracking-tight text-slate-900 sm:text-[2.1rem]">A simple place to practice</h2><p className="mt-3 text-sm leading-6 text-slate-600">Build familiarity with a clear, hands-on learning flow.</p></div>
-      <div className="relative mt-10 grid gap-4 md:grid-cols-3">{steps.map(({ icon: Icon, number, title, text }, index) => <div key={number} className="relative"><GlassCard hover className="h-full p-6 sm:p-7"><div className="flex items-center justify-between"><span className="grid h-12 w-12 place-items-center rounded-2xl border border-emerald-100 bg-emerald-50/80 text-emerald-700"><Icon size={22} aria-hidden="true" /></span><span className="text-xs font-semibold tracking-[0.12em] text-slate-300">{number}</span></div><h3 className="mt-5 text-lg font-semibold text-slate-900">{title}</h3><p className="mt-2 text-sm leading-6 text-slate-600">{text}</p></GlassCard>{index < steps.length - 1 && <span aria-hidden="true" className="absolute -right-3 top-1/2 z-10 hidden -translate-y-1/2 rounded-full border border-slate-200 bg-white p-1.5 text-slate-400 md:block"><ArrowRight size={14} /></span>}</div>)}</div>
+      <div className="relative mt-10 grid grid-cols-1 gap-4 md:grid-cols-3">{steps.map(({ icon: Icon, number, title, text }, index) => <div key={number} className="relative min-w-0"><GlassCard hover className="h-full p-6 sm:p-7"><div className="flex items-center justify-between"><span className="grid h-12 w-12 place-items-center rounded-2xl border border-emerald-100 bg-emerald-50/80 text-emerald-700"><Icon size={22} aria-hidden="true" /></span><span className="text-xs font-semibold tracking-[0.12em] text-slate-300">{number}</span></div><h3 className="mt-5 text-lg font-semibold text-slate-900">{title}</h3><p className="mt-2 text-sm leading-6 text-slate-600">{text}</p></GlassCard>{index < steps.length - 1 && <span aria-hidden="true" className="absolute -right-3 top-1/2 z-10 hidden -translate-y-1/2 rounded-full border border-slate-200 bg-white p-1.5 text-slate-400 md:block"><ArrowRight size={14} /></span>}</div>)}</div>
     </div>
   </section>;
 }
@@ -132,13 +132,13 @@ function PredictionPreview() {
   const markers = useMemo(() => {
     if (candles.length < 6) return [];
     return [
-      { time: candles.at(-5).time, position: "belowBar", color: "#10b981", shape: "arrowUp", text: "Sample UP" },
-      { time: candles.at(-2).time, position: "aboveBar", color: "#ef4444", shape: "arrowDown", text: "Sample DOWN" },
+      { time: candles.at(-18).time, position: "belowBar", color: "#10b981", shape: "arrowUp", text: "UP sample" },
+      { time: candles.at(-9).time, position: "aboveBar", color: "#ef4444", shape: "arrowDown", text: "DOWN sample" },
     ];
   }, [candles]);
   return <section id="predictions" className="mx-auto max-w-7xl scroll-mt-28 px-5 py-16 sm:px-8 sm:py-24">
     <div className="flex flex-wrap items-end justify-between gap-4"><div><p className="text-xs font-semibold uppercase tracking-[0.15em] text-emerald-700">Predictions</p><h2 className="mt-2 max-w-2xl text-3xl font-semibold leading-tight tracking-tight text-slate-900 sm:text-[2.1rem]">See What the Model Thinks,<br className="hidden sm:block" /> Then Check It.</h2><p className="mt-3 max-w-2xl text-sm leading-6 text-slate-600">Explore experimental estimates, then compare them with resolved outcomes over time.</p></div><ExperimentalBadge /></div>
-    <div className="mt-7 grid gap-4 lg:grid-cols-[0.78fr_1.45fr_0.95fr]">
+    <div className="mt-7 grid grid-cols-1 gap-4 lg:grid-cols-[0.78fr_1.45fr_0.95fr]">
       <GlassCard className="flex flex-col items-start p-5 sm:p-6"><span className="grid h-11 w-11 place-items-center rounded-2xl bg-emerald-50 text-emerald-700"><Sparkles size={21} aria-hidden="true" /></span><h3 className="mt-5 text-lg font-semibold text-slate-900">Try a model estimate</h3><p className="mt-2 text-sm leading-6 text-slate-600">Choose a Nifty 50 stock and a time horizon to see an experimental estimate.</p><Button className="mt-6" onClick={() => navigate("/prediction")}>Try Prediction <ArrowRight size={15} aria-hidden="true" /></Button><p className="mt-4 text-[11px] leading-5 text-slate-500">Educational only, not financial advice.</p></GlassCard>
       <GlassCard className="min-w-0 p-4 sm:p-5"><div className="flex flex-wrap items-center justify-between gap-2 px-1"><div><h3 className="text-sm font-semibold text-slate-900">Illustrative prediction view</h3><p className="mt-1 text-[11px] text-slate-500">Example markers on synthetic candles</p></div><Badge kind="neutral">Sample data</Badge></div><CandleChart candles={candles} markers={markers} height={280} className="mt-2" /><div className="flex flex-wrap items-center gap-x-4 gap-y-2 px-2 pt-1 text-[11px] text-slate-500"><span className="inline-flex items-center gap-1.5"><ArrowUpRight size={14} className="text-emerald-600" />Example UP estimate</span><span className="inline-flex items-center gap-1.5"><ArrowDownRight size={14} className="text-red-500" />Example DOWN estimate</span></div><p className="px-2 pt-3 text-[11px] leading-5 text-slate-500">Markers are illustrative only. Educational only, not financial advice.</p></GlassCard>
       <Scorecard />
@@ -153,7 +153,7 @@ function WhyChoose() {
     { icon: GraduationCap, title: "Learn by practice", body: "Use a paper portfolio to understand the mechanics of a trade." },
     { icon: TrendingUp, title: "Easy to explore", body: "A clear workspace designed to make market data more approachable." },
   ];
-  return <section className="border-y border-slate-200/60 bg-white/30 px-5 py-16 sm:px-8 sm:py-20"><div className="mx-auto max-w-7xl"><div className="max-w-xl"><p className="text-xs font-semibold uppercase tracking-[0.15em] text-emerald-700">Why Stockzo</p><h2 className="mt-2 text-3xl font-semibold tracking-tight text-slate-900 sm:text-[2.1rem]">A thoughtful way to learn</h2><p className="mt-3 text-sm leading-6 text-slate-600">Explore market concepts with a practice-first experience.</p></div><div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">{items.map(({ icon: Icon, title, body }) => <GlassCard key={title} hover className="p-5"><span className="grid h-10 w-10 place-items-center rounded-xl bg-emerald-50 text-emerald-700"><Icon size={19} aria-hidden="true" /></span><h3 className="mt-4 text-sm font-semibold text-slate-900">{title}</h3><p className="mt-2 text-xs leading-5 text-slate-600">{body}</p></GlassCard>)}</div></div></section>;
+  return <section className="border-y border-slate-200/60 bg-white/30 px-5 py-16 sm:px-8 sm:py-20"><div className="mx-auto max-w-7xl"><div className="max-w-xl"><p className="text-xs font-semibold uppercase tracking-[0.15em] text-emerald-700">Why Stockzo</p><h2 className="mt-2 text-3xl font-semibold tracking-tight text-slate-900 sm:text-[2.1rem]">A thoughtful way to learn</h2><p className="mt-3 text-sm leading-6 text-slate-600">Explore market concepts with a practice-first experience.</p></div><div className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">{items.map(({ icon: Icon, title, body }) => <GlassCard key={title} hover className="p-5"><span className="grid h-10 w-10 place-items-center rounded-xl bg-emerald-50 text-emerald-700"><Icon size={19} aria-hidden="true" /></span><h3 className="mt-4 text-sm font-semibold text-slate-900">{title}</h3><p className="mt-2 text-xs leading-5 text-slate-600">{body}</p></GlassCard>)}</div></div></section>;
 }
 
 function FinalCta() {
