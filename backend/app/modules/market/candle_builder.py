@@ -11,6 +11,21 @@ class CandleBuilder:
     def subscribe(self, queue): self.subscribers.add(queue)
     def unsubscribe(self, queue): self.subscribers.discard(queue)
 
+    async def seed(self, symbol: str, interval: str, candles: list[dict]) -> int:
+        """Add historical bars once by start time and upsert them to Mongo."""
+        unique={c["start"]:c for c in candles}
+        rows=sorted(unique.values(),key=lambda row:row["start"])[-200:]
+        target=self.history[symbol][interval]
+        existing={row["start"] for row in target}
+        from app.db import get_db
+        for row in rows:
+            stored={**row,"start":to_utc(row["start"])}
+            if row["start"] not in existing: target.append(stored);existing.add(row["start"])
+            await get_db().candles.update_one({"symbol":symbol,"interval":interval,"start":stored["start"]},{"$set":{"symbol":symbol,"interval":interval,**stored}},upsert=True)
+        ordered=sorted(target,key=lambda row:row["start"])[-200:]
+        target.clear();target.extend(ordered)
+        return len(rows)
+
     @staticmethod
     def bucket(ts: datetime, minutes: int) -> datetime:
         local = to_ist(ts)

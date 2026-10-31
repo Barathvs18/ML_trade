@@ -15,13 +15,23 @@ health_state = {"upstox_token_ok": False, "feed_connected": False, "ml_reachable
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    from app.scheduler import build_scheduler, guarded_backfill, backfill_state
+    backfill_task = None
+    scheduler = build_scheduler()
     try:
         await connect_db()
         app.state.db_ok = True
     except Exception:
         app.state.db_ok = False
         logger.exception("Database connection failed")
+    scheduler.start()
+    backfill_task = __import__("asyncio").create_task(guarded_backfill(),name="market-candle-backfill")
     yield
+    scheduler.shutdown(wait=False)
+    if backfill_task and not backfill_task.done():
+        backfill_task.cancel()
+        try: await backfill_task
+        except __import__("asyncio").CancelledError: pass
     await close_db()
 
 
@@ -55,9 +65,10 @@ def create_app() -> FastAPI:
                 db_ok = True
             except Exception:
                 pass
-        from app.core.timeutils import is_market_open
+        from app.core.timeutils import is_market_open, next_market_open
+        from app.scheduler import backfill_state
         return {"status": "ok" if db_ok else "degraded", "db_ok": db_ok, **health_state,
-                "market_open": is_market_open()}
+                "market_open": is_market_open(),"next_market_open":next_market_open().isoformat(),"backfill":dict(backfill_state)}
 
     @app.exception_handler(Exception)
     async def unhandled_error(request: Request, exc: Exception):

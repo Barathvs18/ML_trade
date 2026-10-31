@@ -13,6 +13,9 @@ Google OAuth: `/auth/google/login`, `/auth/me`, `/auth/logout`. Market: `/market
 ### Deployment
 Build from `backend/` on Render and start with `uvicorn app.main:app --host 0.0.0.0 --port $PORT`. Configure a reachable MongoDB URI and HTTPS cookie settings. Use one process/worker for in-memory feed state.
 
+### Market calendar
+`backend/app/data/holidays.json` drives Indian market-day checks. **Verify against the NSE holiday calendar** at the start of each year; holiday dates can change.
+
 ### Documented implementation limitations
 Upstox currently documents Market Data Feed V3 as protobuf over WebSocket and historical candle V3 with a unit and interval. The live feed adapter and complete protobuf decoder are not included yet. The supplied instrument list is incomplete; verify instrument keys against the official instruments file before live use. The V2 candle paths are retained as an adapter placeholder and should be migrated to V3. Replay mode is synthetic and is not market data.
 
