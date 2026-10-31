@@ -4,6 +4,7 @@ let mockUser = null;
 const prices = new Map();
 const openCandles = new Map();
 const trades = [];
+const archivedTrades = [];
 const positions = [];
 const predictions = [];
 let wallet = { user_id: "mock-user", balance: 100000, blocked_margin: 0, realized_pnl: 0, created_at: new Date().toISOString() };
@@ -48,14 +49,19 @@ export function setMockPrice(symbol, tick) {
 export function getOpenCandles() { return openCandles; }
 export function setOpenCandle(symbol, candle) { openCandles.set(symbol.toUpperCase(), candle); }
 export function getMockTrades() { return trades; }
+export function getMockArchivedTrades() { return archivedTrades; }
 export function getMockPositions() { return positions; }
 export function getMockPredictions() { return predictions; }
 export function getMockWallet() { return wallet; }
 export function setMockWallet(nextWallet) { wallet = nextWallet; }
 
-export function resetMockAccount() {
+export function resetMockAccount(resetId = `mock-reset-${Date.now()}`) {
+  const archivedAt = new Date().toISOString();
+  archivedTrades.push(...trades.map((trade) => ({ ...trade, reset_id: resetId, archived_at: archivedAt })));
+  const archivedCount = trades.length;
   trades.length = 0;
   positions.length = 0;
   predictions.length = 0;
   wallet = { user_id: "mock-user", balance: 100000, blocked_margin: 0, realized_pnl: 0, created_at: new Date().toISOString() };
+  return archivedCount;
 }

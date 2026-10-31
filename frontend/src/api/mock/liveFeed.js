@@ -1,4 +1,5 @@
 import { getMockPrice, setMockPrice, getOpenCandles, setOpenCandle } from "./state";
+import { evaluateMockExits } from "./paper";
 
 const randomStates = new Map();
 
@@ -25,6 +26,8 @@ export function startMockFeed(getSymbols, emit) {
       const tick = { ltp, ts: new Date(ts).toISOString(), volume: previous.volume + Math.floor(randomFor(symbol) * 80) + 1 };
       setMockPrice(symbol, tick);
       emit({ type: "tick", symbol, ...tick });
+      const exitTrade = evaluateMockExits(symbol, ltp);
+      if (exitTrade) emit({ type: "paper_exit", symbol, trade: exitTrade });
 
       const start = candleStart(epoch);
       const current = getOpenCandles().get(symbol);

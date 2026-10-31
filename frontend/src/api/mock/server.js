@@ -1,6 +1,7 @@
 import { generateSampleCandles } from "../../lib/sampleData";
 import { MOCK_STOCKS } from "./stocks";
-import { getMockPositions, getMockPredictions, getMockPrice, getMockTrades, getMockUser, getMockWallet, logoutMockUser, requireMockUser, resetMockAccount, setMockWallet } from "./state";
+import { getMockPositions, getMockPredictions, getMockPrice, getMockTrades, getMockUser, getMockWallet, logoutMockUser, requireMockUser, resetMockAccount } from "./state";
+import { closeMockPosition, createMockOrder } from "./paper";
 
 let mockPredictionSequence = 0;
 const MOCK_RESOLUTION_SECONDS = 12;
@@ -139,52 +140,6 @@ function createPrediction(payload = {}) {
   return prediction;
 }
 
-function createPaperOrder(payload = {}) {
-  requireMockUser();
-  const symbol = String(payload.symbol || "").toUpperCase();
-  const side = String(payload.side || "").toUpperCase();
-  const qty = Number(payload.qty);
-  const fail = (status, code, message) => {
-    const error = new Error(message);
-    error.response = { status, data: { error: { code, message }, detail: { error: { code, message } } } };
-    throw error;
-  };
-  if (!getStocks().some((stock) => stock.symbol === symbol) || !["BUY", "SELL"].includes(side) || !Number.isInteger(qty) || qty < 1) fail(422, "invalid_order", "Choose a valid stock, side, and whole-number quantity.");
-  const ltp = getMockPrice(symbol).ltp;
-  const price = ltp * (side === "BUY" ? 1.0002 : 0.9998);
-  const positionSide = side === "BUY" ? "LONG" : "SHORT";
-  const stop = payload.stop_loss == null || payload.stop_loss === "" ? null : Number(payload.stop_loss);
-  const target = payload.target == null || payload.target === "" ? null : Number(payload.target);
-  if (stop !== null && (positionSide === "LONG" ? stop >= price : stop <= price)) fail(422, "invalid_stop_loss", `${positionSide === "LONG" ? "Long" : "Short"} stop-loss is on the wrong side of entry.`);
-  if (target !== null && (positionSide === "LONG" ? target <= price : target >= price)) fail(422, "invalid_target", `${positionSide === "LONG" ? "Long" : "Short"} target is on the wrong side of entry.`);
-  const turnover = qty * price;
-  const charges = {
-    brokerage: Math.min(20, turnover * 0.0003),
-    stt: side === "SELL" ? turnover * 0.00025 : 0,
-    exchange: turnover * 0.0000325,
-    sebi: turnover * 0.000001,
-    stamp_duty: side === "BUY" ? turnover * 0.00003 : 0,
-  };
-  charges.gst = (charges.brokerage + charges.exchange) * 0.18;
-  charges.total = Object.values(charges).reduce((sum, value) => sum + value, 0);
-  const wallet = getMockWallet();
-  if (wallet.balance < turnover + charges.total) fail(400, "insufficient_balance", "Insufficient virtual balance for estimated margin and charges.");
-  const position = getMockPositions().find((item) => item.symbol === symbol);
-  if (position && position.side !== positionSide) fail(422, "position_conflict", "Close the existing mock position before changing sides.");
-  if (!position) getMockPositions().push({ user_id: "mock-user", symbol, side: positionSide, qty, avg_price: price, opened_at: new Date().toISOString(), stop_loss: stop, target, prediction_id: payload.prediction_id ?? null });
-  else {
-    const totalQty = position.qty + qty;
-    position.avg_price = (position.avg_price * position.qty + price * qty) / totalQty;
-    position.qty = totalQty;
-    position.stop_loss = stop ?? position.stop_loss;
-    position.target = target ?? position.target;
-  }
-  const trade = { _id: `mock-trade-${Date.now()}-${getMockTrades().length}`, user_id: "mock-user", symbol, side, qty, price, ts: new Date().toISOString(), realized_pnl: 0, reason: "manual", prediction_id: payload.prediction_id ?? null, charges };
-  getMockTrades().unshift(trade);
-  setMockWallet({ ...wallet, balance: wallet.balance - turnover - charges.total, blocked_margin: wallet.blocked_margin + turnover });
-  return { ok: true, trade, position: getMockPositions().find((item) => item.symbol === symbol) };
-}
-
 function getPath(url) {
   const parsed = new URL(url, "http://mock.local");
   return { path: parsed.pathname.replace(/\/$/, "") || "/", search: Object.fromEntries(parsed.searchParams.entries()) };
@@ -226,22 +181,17 @@ export async function mockRequest(method, url, bodyOrParams) {
   if (method === "GET" && path === "/paper/positions") { requireMockUser(); return { positions: getMockPositions(), unrealized_total: paperPnl().unrealized }; }
   if (method === "GET" && path === "/paper/trades") { requireMockUser(); return [...getMockTrades()].slice(0, Number(params.limit) || 50); }
   if (method === "GET" && path === "/paper/pnl") return paperPnl();
-  if (method === "POST" && path === "/paper/orders") return createPaperOrder(body);
+  if (method === "POST" && path === "/paper/orders") { requireMockUser(); return createMockOrder(body, getStocks()); }
   const closeMatch = path.match(/^\/paper\/positions\/([^/]+)\/close$/);
   if (method === "POST" && closeMatch) {
     requireMockUser();
     const symbol = closeMatch[1].toUpperCase();
-    const index = getMockPositions().findIndex((position) => position.symbol === symbol);
-    if (index < 0) throw new Error("No open mock position for this symbol.");
-    const position = getMockPositions().splice(index, 1)[0];
-    const price = getMockPrice(symbol).ltp;
-    const pnl = (position.side === "LONG" ? price - position.avg_price : position.avg_price - price) * position.qty;
-    getMockTrades().unshift({ _id: `mock-trade-${Date.now()}`, user_id: "mock-user", symbol, side: position.side === "LONG" ? "SELL" : "BUY", qty: position.qty, price, ts: new Date().toISOString(), realized_pnl: pnl, reason: "manual", charges: { total: 0 } });
-    const wallet = getMockWallet();
-    setMockWallet({ ...wallet, balance: wallet.balance + position.qty * position.avg_price + pnl, blocked_margin: Math.max(0, wallet.blocked_margin - position.qty * position.avg_price), realized_pnl: wallet.realized_pnl + pnl });
-    return { ok: true, realized_pnl: pnl };
+    requireMockUser();
+    const trade = closeMockPosition(symbol, "manual");
+    if (!trade) throw Object.assign(new Error("No open mock position for this symbol."), { response: { status: 404, data: { error: { code: "not_found", message: "No open mock position for this symbol." } } } });
+    return trade;
   }
-  if (method === "POST" && path === "/paper/reset") { requireMockUser(); resetMockAccount(); return { ok: true, reset_id: `mock-reset-${Date.now()}`, archived_trades: 0 }; }
+  if (method === "POST" && path === "/paper/reset") { requireMockUser(); const reset_id = `mock-reset-${Date.now()}`; return { ok: true, reset_id, archived_trades: resetMockAccount(reset_id) }; }
   const error = new Error(`Mock endpoint not implemented: ${method} ${path}`);
   error.response = { status: 404, data: { error: { code: "not_found", message: error.message } } };
   throw error;
