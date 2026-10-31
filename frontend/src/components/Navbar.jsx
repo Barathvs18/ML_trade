@@ -88,9 +88,12 @@ export default function Navbar() {
           </div>}
         </div>}
       </div>
-      <button type="button" onClick={() => setMobileOpen((open) => !open)} aria-label={mobileOpen ? "Close navigation menu" : "Open navigation menu"} aria-expanded={mobileOpen} className="grid h-10 w-10 place-items-center rounded-full text-slate-700 hover:bg-white/80 sm:hidden">
-        {mobileOpen ? <X size={20} /> : <Menu size={20} />}
-      </button>
+      <div className="ml-auto flex items-center gap-2 sm:hidden">
+        {isMockMode && <Badge kind="neutral">Mock data</Badge>}
+        <button type="button" onClick={() => setMobileOpen((open) => !open)} aria-label={mobileOpen ? "Close navigation menu" : "Open navigation menu"} aria-expanded={mobileOpen} className="grid h-10 w-10 place-items-center rounded-full text-slate-700 hover:bg-white/80">
+          {mobileOpen ? <X size={20} /> : <Menu size={20} />}
+        </button>
+      </div>
     </nav>
     {mobileOpen && <div className="glass-card mx-auto mt-2 max-w-7xl space-y-2 p-4 sm:hidden">
       {isMockMode && <div className="mb-2"><Badge kind="neutral">Mock data</Badge></div>}
