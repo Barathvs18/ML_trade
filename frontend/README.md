@@ -15,6 +15,8 @@ npm run dev
 
 Set `VITE_API_URL` in `.env.local` to the backend origin. The local default is `http://localhost:8000`. Start the backend separately and configure its `FRONTEND_URL` and CORS origin to match the Vite URL (normally `http://localhost:5173`). Google sign-in also requires valid Google OAuth configuration in the backend.
 
+To run the UI without a backend, set `VITE_USE_MOCK=true` in `.env.local` and restart Vite. This enables seeded in-memory market/account endpoints, a one-second mock price/candle feed, and a fake demo account from the login button. The default `false` value uses the real backend and Google OAuth.
+
 ```powershell
 npm run lint
 npm run build

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import api from "../api/client";
+import api, { googleLoginUrl, isMockMode } from "../api/client";
 import AuthContext from "./AuthContext";
 
 export function AuthProvider({ children }) {
@@ -23,6 +23,17 @@ export function AuthProvider({ children }) {
     }
   }, []);
 
-  const value = useMemo(() => ({ user, loading, logout }), [user, loading, logout]);
+  const login = useCallback(async () => {
+    if (isMockMode) {
+      const { loginMockUser } = await import("../api/mock/state");
+      const mockUser = loginMockUser();
+      setUser(mockUser);
+      return mockUser;
+    }
+    window.location.assign(googleLoginUrl());
+    return null;
+  }, []);
+
+  const value = useMemo(() => ({ user, loading, login, logout }), [user, loading, login, logout]);
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

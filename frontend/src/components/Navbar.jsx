@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { ArrowUpRight, ChevronDown, LogOut, Menu, Search, TrendingUp, X } from "lucide-react";
-import api, { googleLoginUrl } from "../api/client";
+import api, { isMockMode } from "../api/client";
 import { useAuth } from "../auth/useAuth";
 import { Badge, Button, PaperModeBadge, Skeleton } from "./ui";
 
@@ -14,7 +14,7 @@ function Brand({ onClick }) {
 }
 
 export default function Navbar() {
-  const { user, logout } = useAuth();
+  const { user, login, logout } = useAuth();
   const navigate = useNavigate();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
@@ -27,7 +27,7 @@ export default function Navbar() {
   });
   const stocks = Array.isArray(stockQuery.data) ? stockQuery.data.slice(0, 6) : [];
 
-  const signIn = () => window.location.assign(googleLoginUrl());
+  const signIn = () => { void login(); };
   const closeMenu = () => setMobileOpen(false);
   const handleLogout = async () => {
     try {
@@ -70,6 +70,7 @@ export default function Navbar() {
         </div>}
       </div>
       <div className="hidden shrink-0 items-center gap-2 sm:flex">
+        {isMockMode && <Badge kind="neutral">Mock data</Badge>}
         {!user ? <>
           <Button variant="ghost" onClick={signIn} className="!px-3">Log in</Button>
           <Button size="sm" onClick={signIn}>Get Started <ArrowUpRight size={15} aria-hidden="true" /></Button>
@@ -90,6 +91,7 @@ export default function Navbar() {
       </button>
     </nav>
     {mobileOpen && <div className="glass-card mx-auto mt-2 max-w-7xl space-y-2 p-4 sm:hidden">
+      {isMockMode && <div className="mb-2"><Badge kind="neutral">Mock data</Badge></div>}
       {user && <div className="mb-2">
         <label className="flex h-11 items-center gap-2 rounded-full border border-slate-200 bg-white/75 px-3 text-slate-400"><Search size={16} aria-hidden="true" /><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search Nifty 50" aria-label="Search Nifty 50 stocks" className="min-w-0 flex-1 bg-transparent text-sm text-slate-700 outline-none" /></label>
         {search && <div className="mt-1 rounded-xl bg-white p-1">{stocks.map((stock) => <Link key={stock.symbol} to={`/dashboard?symbol=${encodeURIComponent(stock.symbol)}`} onClick={closeMenu} className="block rounded-lg px-3 py-2 text-sm hover:bg-emerald-50"><b>{stock.symbol}</b><span className="ml-2 text-slate-500">{stock.name}</span></Link>)}</div>}

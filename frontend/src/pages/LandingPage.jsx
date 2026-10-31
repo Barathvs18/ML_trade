@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { ArrowDownRight, ArrowRight, ArrowUpRight, BarChart3, ChevronRight, CircleHelp, Compass, GraduationCap, LockKeyhole, ShieldCheck, Sparkles, TrendingUp, WalletCards } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import api, { googleLoginUrl } from "../api/client";
+import api from "../api/client";
 import { useAuth } from "../auth/useAuth";
 import { AreaSparkline, CandleChart } from "../components/charts";
 import { Badge, Button, ExperimentalBadge, GlassCard, PaperModeBadge, TimeframePills } from "../components/ui";
@@ -54,14 +54,14 @@ function HeroChart() {
 }
 
 function Hero() {
-  const begin = () => window.location.assign(googleLoginUrl());
+  const { login } = useAuth();
   return <section className="relative mx-auto grid max-w-7xl grid-cols-1 items-center gap-9 px-5 pb-16 pt-14 sm:px-8 sm:pb-24 sm:pt-20 lg:grid-cols-[0.9fr_1.1fr] lg:gap-10 lg:pt-24">
     <div className="entrance min-w-0 max-w-xl">
       <div className="flex flex-wrap items-center gap-2"><PaperModeBadge /><MarketStatusPill /></div>
       <p className="mt-8 text-xs font-semibold uppercase tracking-[0.18em] text-emerald-700">Learn the market, at your pace</p>
       <h1 className="mt-4 text-[2.25rem] font-semibold leading-[1.04] tracking-[-0.055em] text-slate-900 sm:text-6xl">Smarter Trading.<br /><span className="text-emerald-500">Brighter Tomorrow.</span></h1>
       <p className="mt-5 max-w-lg text-[15px] leading-7 text-slate-600 sm:text-base">Explore Indian markets, learn from experimental model estimates, and practice your decisions with virtual money.</p>
-      <div className="mt-7 flex flex-wrap gap-3"><Button size="lg" onClick={begin}>Start Trading Free <ArrowRight size={17} aria-hidden="true" /></Button><a href="#how-it-works" className="button button--secondary button--lg">See how it works <ChevronRight size={17} aria-hidden="true" /></a></div>
+      <div className="mt-7 flex flex-wrap gap-3"><Button size="lg" onClick={() => { void login(); }}>Start Trading Free <ArrowRight size={17} aria-hidden="true" /></Button><a href="#how-it-works" className="button button--secondary button--lg">See how it works <ChevronRight size={17} aria-hidden="true" /></a></div>
       <p className="mt-5 flex items-center gap-2 text-xs text-slate-500"><LockKeyhole size={14} className="text-emerald-700" aria-hidden="true" />Sign in with Google. Practice with simulated funds.</p>
     </div>
     <div className="relative entrance min-w-0 lg:pl-2"><div className="absolute -inset-5 -z-10 rounded-[42px] bg-gradient-to-br from-emerald-100/50 via-transparent to-slate-200/50 blur-2xl" /><HeroChart /></div>
@@ -157,7 +157,8 @@ function WhyChoose() {
 }
 
 function FinalCta() {
-  return <section className="mx-auto max-w-7xl px-5 py-16 sm:px-8 sm:py-20"><div className="relative overflow-hidden rounded-[28px] bg-gradient-to-r from-emerald-600 via-emerald-700 to-slate-900 px-6 py-10 text-white shadow-[0_22px_60px_rgba(15,23,42,0.16)] sm:px-10 sm:py-12"><div className="absolute -right-16 -top-24 h-72 w-72 rounded-full border border-white/10 bg-white/5" aria-hidden="true" /><div className="relative flex flex-col items-start justify-between gap-6 sm:flex-row sm:items-center"><div><p className="text-xs font-semibold uppercase tracking-[0.16em] text-emerald-100">A little practice goes a long way</p><h2 className="mt-3 max-w-2xl text-3xl font-semibold leading-tight tracking-tight sm:text-4xl">Start Your Trading Journey Today.</h2><p className="mt-3 max-w-xl text-sm leading-6 text-emerald-50/90">Learn market basics in a simulated environment with virtual money.</p></div><Button variant="secondary" size="lg" onClick={() => window.location.assign(googleLoginUrl())} className="!border-white/25 !bg-white !text-slate-900 hover:!bg-emerald-50">Get Started Free <ArrowRight size={16} aria-hidden="true" /></Button></div></div></section>;
+  const { login } = useAuth();
+  return <section className="mx-auto max-w-7xl px-5 py-16 sm:px-8 sm:py-20"><div className="relative overflow-hidden rounded-[28px] bg-gradient-to-r from-emerald-600 via-emerald-700 to-slate-900 px-6 py-10 text-white shadow-[0_22px_60px_rgba(15,23,42,0.16)] sm:px-10 sm:py-12"><div className="absolute -right-16 -top-24 h-72 w-72 rounded-full border border-white/10 bg-white/5" aria-hidden="true" /><div className="relative flex flex-col items-start justify-between gap-6 sm:flex-row sm:items-center"><div><p className="text-xs font-semibold uppercase tracking-[0.16em] text-emerald-100">A little practice goes a long way</p><h2 className="mt-3 max-w-2xl text-3xl font-semibold leading-tight tracking-tight sm:text-4xl">Start Your Trading Journey Today.</h2><p className="mt-3 max-w-xl text-sm leading-6 text-emerald-50/90">Learn market basics in a simulated environment with virtual money.</p></div><Button variant="secondary" size="lg" onClick={() => { void login(); }} className="!border-white/25 !bg-white !text-slate-900 hover:!bg-emerald-50">Get Started Free <ArrowRight size={16} aria-hidden="true" /></Button></div></div></section>;
 }
 
 export default function LandingPage() {
