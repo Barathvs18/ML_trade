@@ -28,11 +28,12 @@ function normalizeCandle(candle) {
   };
 }
 
-const CandleChart = forwardRef(function CandleChart({ candles = [], volume, markers = [], height = 360, className = "" }, ref) {
+const CandleChart = forwardRef(function CandleChart({ candles = [], volume, markers = [], priceLines = [], height = 360, className = "" }, ref) {
   const hostRef = useRef(null);
   const chartRef = useRef(null);
   const candleSeriesRef = useRef(null);
   const volumeSeriesRef = useRef(null);
+  const priceLineRefs = useRef([]);
   const previousDataRef = useRef([]);
   const previousVolumeRef = useRef([]);
   const normalized = useMemo(() => candles.map(normalizeCandle).filter((item) => Number.isFinite(item.time) && Number.isFinite(item.close)), [candles]);
@@ -100,8 +101,25 @@ const CandleChart = forwardRef(function CandleChart({ candles = [], volume, mark
       volumeSeriesRef.current = null;
       previousDataRef.current = [];
       previousVolumeRef.current = [];
+      priceLineRefs.current = [];
     };
   }, [height]);
+
+  useEffect(() => {
+    const series = candleSeriesRef.current;
+    if (!series) return;
+    for (const line of priceLineRefs.current) series.removePriceLine(line);
+    priceLineRefs.current = priceLines
+      .filter((line) => Number.isFinite(Number(line.price)) && Number(line.price) > 0)
+      .map((line) => series.createPriceLine({
+        price: Number(line.price),
+        color: line.color ?? "#64748b",
+        lineWidth: line.lineWidth ?? 1,
+        lineStyle: line.lineStyle ?? 0,
+        axisLabelVisible: true,
+        title: line.title ?? "",
+      }));
+  }, [priceLines]);
 
   useEffect(() => {
     const candleSeries = candleSeriesRef.current;

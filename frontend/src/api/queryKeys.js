@@ -6,6 +6,7 @@ export const queryKeys = {
   dashboardSummary: ["dashboard", "summary"],
   equityCurve: (range) => ["dashboard", "equity-curve", range],
   predictions: (filters = {}) => ["predictions", filters],
+  predictionDetail: (id) => ["predictions", "detail", id],
   predictionStats: ["predictions", "stats"],
   positions: ["paper", "positions"],
   trades: (limit) => ["paper", "trades", limit],

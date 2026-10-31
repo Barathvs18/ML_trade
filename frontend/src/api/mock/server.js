@@ -2,36 +2,16 @@ import { generateSampleCandles } from "../../lib/sampleData";
 import { MOCK_STOCKS } from "./stocks";
 import { getMockPositions, getMockPredictions, getMockPrice, getMockTrades, getMockUser, getMockWallet, logoutMockUser, requireMockUser, resetMockAccount, setMockWallet } from "./state";
 
+let mockPredictionSequence = 0;
+const MOCK_RESOLUTION_SECONDS = 12;
+
 const getStocks = (query = "") => {
   const normalized = String(query).trim().toLowerCase();
   return MOCK_STOCKS.filter((stock) => !normalized || stock.symbol.toLowerCase().includes(normalized) || stock.name.toLowerCase().includes(normalized));
 };
 
-function istParts(date = new Date()) {
-  const parts = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Kolkata", year: "numeric", month: "2-digit", day: "2-digit", weekday: "short", hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).formatToParts(date);
-  return Object.fromEntries(parts.map((part) => [part.type, part.value]));
-}
-
-function nextOpen(now = new Date()) {
-  const parts = istParts(now);
-  const weekdays = { Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6, Sun: 7 };
-  let delta = 0;
-  const minuteOfDay = Number(parts.hour) * 60 + Number(parts.minute);
-  if (weekdays[parts.weekday] === 6) delta = 2;
-  else if (weekdays[parts.weekday] === 7) delta = 1;
-  else if (minuteOfDay >= 15 * 60 + 30) delta = weekdays[parts.weekday] === 5 ? 3 : 1;
-  const base = new Date(`${parts.year}-${parts.month}-${parts.day}T00:00:00+05:30`);
-  base.setUTCDate(base.getUTCDate() + delta);
-  const date = istParts(base);
-  return `${date.year}-${date.month}-${date.day}T09:15:00+05:30`;
-}
-
 function marketStatus() {
-  const parts = istParts();
-  const weekday = ["Mon", "Tue", "Wed", "Thu", "Fri"].includes(parts.weekday);
-  const minuteOfDay = Number(parts.hour) * 60 + Number(parts.minute);
-  const marketOpen = weekday && minuteOfDay >= 9 * 60 + 15 && minuteOfDay < 15 * 60 + 30;
-  return { market_open: marketOpen, next_market_open: marketOpen ? null : nextOpen(), upstox_token_ok: false };
+  return { market_open: true, next_market_open: null, upstox_token_ok: false, mock_market: true };
 }
 
 function getCandles(symbol, interval, limit) {
@@ -50,6 +30,7 @@ function getCandles(symbol, interval, limit) {
 }
 
 function resolvedStats() {
+  getMockPredictions().forEach(resolveMockPrediction);
   const resolved = getMockPredictions().filter((prediction) => prediction.status === "resolved");
   return Object.fromEntries([5, 10, 30].map((horizon) => {
     const rows = resolved.filter((prediction) => prediction.horizon === horizon);
@@ -58,6 +39,22 @@ function resolvedStats() {
     const baseline = rows.filter((prediction) => prediction.baseline_correct).length;
     return [String(horizon), { count, accuracy: count ? correct / count : 0, baseline_accuracy: count ? baseline / count : 0, beats_baseline: correct > baseline }];
   }));
+}
+
+function resolveMockPrediction(prediction) {
+  if (prediction.status !== "pending" || Date.now() < new Date(prediction.resolve_at).getTime()) return prediction;
+  const tick = getMockPrice(prediction.symbol);
+  const actualReturn = (tick.ltp - prediction.entry_price) / prediction.entry_price * 100;
+  const actualDirection = Math.abs(actualReturn) < 0.05 ? "SIDEWAYS" : actualReturn > 0 ? "UP" : "DOWN";
+  Object.assign(prediction, {
+    status: "resolved",
+    actual_direction: actualDirection,
+    actual_return_pct: actualReturn,
+    correct: prediction.direction === actualDirection,
+    baseline_correct: actualDirection === "SIDEWAYS",
+    resolved_at: new Date().toISOString(),
+  });
+  return prediction;
 }
 
 function dashboardSummary() {
@@ -108,22 +105,35 @@ function createPrediction(payload = {}) {
   requireMockUser();
   const { symbol, horizon } = payload;
   if (!getStocks().some((stock) => stock.symbol === String(symbol).toUpperCase()) || ![5, 10, 30].includes(Number(horizon))) throw new Error("Choose a valid Nifty 50 symbol and horizon.");
-  const tick = getMockPrice(symbol);
+  const normalizedSymbol = String(symbol).toUpperCase();
+  const tick = getMockPrice(normalizedSymbol);
+  const directions = ["UP", "DOWN", "SIDEWAYS"];
+  const direction = directions[mockPredictionSequence++ % directions.length];
+  const probability = 0.58;
+  const probabilities = direction === "UP"
+    ? { UP: probability, DOWN: 0.27, SIDEWAYS: 0.15 }
+    : direction === "DOWN"
+      ? { UP: 0.27, DOWN: probability, SIDEWAYS: 0.15 }
+      : { UP: 0.27, DOWN: 0.15, SIDEWAYS: probability };
+  const forecastMove = direction === "UP" ? 0.0015 : direction === "DOWN" ? -0.0015 : 0;
+  const madeAt = Date.now();
   const prediction = {
-    _id: `mock-pred-${Date.now()}`,
+    _id: `mock-pred-${madeAt}-${mockPredictionSequence}`,
     user_id: "mock-user",
-    symbol: String(symbol).toUpperCase(),
+    symbol: normalizedSymbol,
     horizon: Number(horizon),
     model: "kronos",
-    made_at: new Date().toISOString(),
+    made_at: new Date(madeAt).toISOString(),
     entry_price: tick.ltp,
-    direction: "SIDEWAYS",
-    probability: 0.46,
+    direction,
+    probability,
+    probabilities,
     confidence: "medium",
-    forecast_close: tick.ltp,
-    resolve_at: new Date(Date.now() + Number(horizon) * 60_000).toISOString(),
+    forecast_close: tick.ltp * (1 + forecastMove),
+    resolve_at: new Date(madeAt + MOCK_RESOLUTION_SECONDS * 1000).toISOString(),
     status: "pending",
     disclaimer: "Educational only, not financial advice",
+    mock_accelerated: true,
   };
   getMockPredictions().unshift(prediction);
   return prediction;
@@ -134,15 +144,44 @@ function createPaperOrder(payload = {}) {
   const symbol = String(payload.symbol || "").toUpperCase();
   const side = String(payload.side || "").toUpperCase();
   const qty = Number(payload.qty);
-  if (!getStocks().some((stock) => stock.symbol === symbol) || !["BUY", "SELL"].includes(side) || qty < 1) throw new Error("Invalid mock paper order.");
-  const price = getMockPrice(symbol).ltp;
+  const fail = (status, code, message) => {
+    const error = new Error(message);
+    error.response = { status, data: { error: { code, message }, detail: { error: { code, message } } } };
+    throw error;
+  };
+  if (!getStocks().some((stock) => stock.symbol === symbol) || !["BUY", "SELL"].includes(side) || !Number.isInteger(qty) || qty < 1) fail(422, "invalid_order", "Choose a valid stock, side, and whole-number quantity.");
+  const ltp = getMockPrice(symbol).ltp;
+  const price = ltp * (side === "BUY" ? 1.0002 : 0.9998);
   const positionSide = side === "BUY" ? "LONG" : "SHORT";
-  const position = getMockPositions().find((item) => item.symbol === symbol);
-  if (!position) getMockPositions().push({ user_id: "mock-user", symbol, side: positionSide, qty, avg_price: price, opened_at: new Date().toISOString(), stop_loss: payload.stop_loss ?? null, target: payload.target ?? null, prediction_id: payload.prediction_id ?? null });
-  const trade = { _id: `mock-trade-${Date.now()}`, user_id: "mock-user", symbol, side, qty, price, ts: new Date().toISOString(), realized_pnl: 0, reason: "mock_order", prediction_id: payload.prediction_id ?? null, charges: { total: 0 } };
-  getMockTrades().unshift(trade);
+  const stop = payload.stop_loss == null || payload.stop_loss === "" ? null : Number(payload.stop_loss);
+  const target = payload.target == null || payload.target === "" ? null : Number(payload.target);
+  if (stop !== null && (positionSide === "LONG" ? stop >= price : stop <= price)) fail(422, "invalid_stop_loss", `${positionSide === "LONG" ? "Long" : "Short"} stop-loss is on the wrong side of entry.`);
+  if (target !== null && (positionSide === "LONG" ? target <= price : target >= price)) fail(422, "invalid_target", `${positionSide === "LONG" ? "Long" : "Short"} target is on the wrong side of entry.`);
+  const turnover = qty * price;
+  const charges = {
+    brokerage: Math.min(20, turnover * 0.0003),
+    stt: side === "SELL" ? turnover * 0.00025 : 0,
+    exchange: turnover * 0.0000325,
+    sebi: turnover * 0.000001,
+    stamp_duty: side === "BUY" ? turnover * 0.00003 : 0,
+  };
+  charges.gst = (charges.brokerage + charges.exchange) * 0.18;
+  charges.total = Object.values(charges).reduce((sum, value) => sum + value, 0);
   const wallet = getMockWallet();
-  setMockWallet({ ...wallet, balance: wallet.balance - qty * price, blocked_margin: wallet.blocked_margin + qty * price });
+  if (wallet.balance < turnover + charges.total) fail(400, "insufficient_balance", "Insufficient virtual balance for estimated margin and charges.");
+  const position = getMockPositions().find((item) => item.symbol === symbol);
+  if (position && position.side !== positionSide) fail(422, "position_conflict", "Close the existing mock position before changing sides.");
+  if (!position) getMockPositions().push({ user_id: "mock-user", symbol, side: positionSide, qty, avg_price: price, opened_at: new Date().toISOString(), stop_loss: stop, target, prediction_id: payload.prediction_id ?? null });
+  else {
+    const totalQty = position.qty + qty;
+    position.avg_price = (position.avg_price * position.qty + price * qty) / totalQty;
+    position.qty = totalQty;
+    position.stop_loss = stop ?? position.stop_loss;
+    position.target = target ?? position.target;
+  }
+  const trade = { _id: `mock-trade-${Date.now()}-${getMockTrades().length}`, user_id: "mock-user", symbol, side, qty, price, ts: new Date().toISOString(), realized_pnl: 0, reason: "manual", prediction_id: payload.prediction_id ?? null, charges };
+  getMockTrades().unshift(trade);
+  setMockWallet({ ...wallet, balance: wallet.balance - turnover - charges.total, blocked_margin: wallet.blocked_margin + turnover });
   return { ok: true, trade, position: getMockPositions().find((item) => item.symbol === symbol) };
 }
 
@@ -170,8 +209,16 @@ export async function mockRequest(method, url, bodyOrParams) {
   if (method === "GET" && path === "/dashboard/summary") return dashboardSummary();
   if (method === "GET" && path === "/dashboard/equity-curve") return equityCurve(params.range || "1d");
   if (method === "GET" && path === "/predictions/stats") { requireMockUser(); return resolvedStats(); }
+  const predictionMatch = path.match(/^\/predictions\/([^/]+)$/);
+  if (method === "GET" && predictionMatch) {
+    requireMockUser();
+    const prediction = getMockPredictions().find((row) => row._id === decodeURIComponent(predictionMatch[1]));
+    if (!prediction) throw Object.assign(new Error("Prediction not found"), { response: { status: 404, data: { error: { code: "not_found", message: "Prediction not found" } } } });
+    return resolveMockPrediction(prediction);
+  }
   if (method === "GET" && path === "/predictions") {
     requireMockUser();
+    getMockPredictions().forEach(resolveMockPrediction);
     return getMockPredictions().filter((row) => (!params.symbol || row.symbol === String(params.symbol).toUpperCase()) && (!params.horizon || row.horizon === Number(params.horizon)) && (!params.status || row.status === params.status)).slice(0, Number(params.limit) || 50);
   }
   if (method === "POST" && path === "/predictions") return createPrediction(body);
