@@ -29,6 +29,7 @@ def test_direction_uses_class_votes_and_sideways_wins_a_tie():
 def test_default_kronos_sample_count_is_ten():
     from app.config import settings
     assert settings.kronos_samples==10
+    assert settings.model_mock is False
 
 def test_router_selects_kronos_interval_and_prediction_steps_for_all_horizons():
     class Kronos:

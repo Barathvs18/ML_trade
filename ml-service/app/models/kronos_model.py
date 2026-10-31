@@ -71,8 +71,16 @@ class KronosModel:
         if settings.hf_token:
             hub_options["token"] = settings.hf_token
 
-        tokenizer = KronosTokenizer.from_pretrained(settings.kronos_tokenizer, **hub_options)
-        model = Kronos.from_pretrained(settings.kronos_model, **hub_options)
+        tokenizer = KronosTokenizer.from_pretrained(
+            settings.kronos_tokenizer,
+            revision=settings.kronos_tokenizer_revision,
+            **hub_options,
+        )
+        model = Kronos.from_pretrained(
+            settings.kronos_model,
+            revision=settings.kronos_model_revision,
+            **hub_options,
+        )
         tokenizer.eval()
         model.eval()
         predictor = KronosPredictor(model, tokenizer, device="cpu", max_context=context)

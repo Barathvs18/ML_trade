@@ -11,6 +11,11 @@ logger=logging.getLogger("algopredict.ml")
 
 @asynccontextmanager
 async def lifespan(app:FastAPI):
+    if not settings.ml_api_key.strip():
+        logger.critical("ML_API_KEY is missing; refusing to start without API authentication")
+        raise RuntimeError("ML_API_KEY is required before the ML service can start")
+    import torch
+    torch.set_num_threads(2)
     app.state.semaphore=asyncio.Semaphore(max(1,settings.max_concurrency))
     app.state.cache=PredictionCache(settings.cache_ttl_seconds)
     try:

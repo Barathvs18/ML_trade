@@ -88,6 +88,8 @@ def test_loader_uses_matching_tokenizer_and_model_context(monkeypatch):
     assert loaded.available and not loaded.mock
     assert calls["predictor"] == ("cpu", 2048)
     assert loaded.max_context == 2048
+    assert calls["NeoQuasar/Kronos-mini"]["revision"] == settings.kronos_model_revision
+    assert calls["NeoQuasar/Kronos-Tokenizer-2k"]["revision"] == settings.kronos_tokenizer_revision
 
 
 def test_input_is_truncated_to_loaded_model_context():

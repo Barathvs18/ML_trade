@@ -64,7 +64,7 @@ def test_30m_candle_spacing_allows_backend_weekend_session_gap():
 
 def test_auth_and_predict_contract():
     from app.config import settings
-    old=settings.ml_api_key;settings.ml_api_key="test-secret"
+    old=(settings.ml_api_key,settings.model_mock);settings.ml_api_key="test-secret";settings.model_mock=True
     try:
         app=create_app()
         with TestClient(app) as client:
@@ -79,7 +79,7 @@ def test_auth_and_predict_contract():
             assert sum(response.json()["probabilities"].values())==pytest.approx(1.0)
             assert response.json()["model"]=="kronos"
             assert client.post("/predict",json={**payload,"horizon":99},headers={"X-API-Key":"test-secret"}).status_code==422
-    finally:settings.ml_api_key=old
+    finally:settings.ml_api_key,settings.model_mock=old
 
 def test_health_contract_and_model_unavailable_503(monkeypatch):
     app=create_app()
@@ -97,8 +97,22 @@ def test_health_contract_and_model_unavailable_503(monkeypatch):
 
 def test_health_reports_only_kronos_when_mock_is_ready():
     from app.config import settings
-    old=settings.model_mock;settings.model_mock=True
+    old=(settings.ml_api_key,settings.model_mock);settings.ml_api_key="test-secret";settings.model_mock=True
     try:
         with TestClient(create_app()) as client:
             assert client.get("/health").json()=={"status":"ok","models":{"kronos":True},"device":"cpu"}
-    finally:settings.model_mock=old
+    finally:settings.ml_api_key,settings.model_mock=old
+
+def test_missing_api_key_fails_before_loading_model(monkeypatch,caplog):
+    from app.config import settings
+    from app.models.kronos_model import KronosModel
+    old=(settings.ml_api_key,settings.model_mock)
+    settings.ml_api_key="";settings.model_mock=True
+    monkeypatch.setattr(KronosModel,"load",classmethod(lambda cls:pytest.fail("model load must not run without an API key")))
+    try:
+        with pytest.raises(RuntimeError,match="ML_API_KEY is required"):
+            with TestClient(create_app()):
+                pass
+        assert "ML_API_KEY is missing" in caplog.text
+    finally:
+        settings.ml_api_key,settings.model_mock=old

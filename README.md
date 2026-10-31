@@ -58,4 +58,32 @@ _Frontend implementation is maintained separately._
 
 ## ML service
 
-_ML service implementation is maintained separately._
+The ML service is deployed separately as a Hugging Face Space. Create a Space with the **Docker** SDK and choose public or private visibility. In Space **Settings → Variables and secrets**, add `ML_API_KEY` as a required secret and `HF_TOKEN` only if Hugging Face Hub access is needed. Never store these secrets in Git.
+
+The Docker image and Space README metadata are in `ml-service/`. From Windows, use a separate clone of the Space repo and copy only the service payload before pushing:
+
+```powershell
+hf auth login
+$hfUser = "YOUR_HF_USERNAME"
+$spaceName = "algopredict-ml"
+$source = (Resolve-Path .\ml-service).Path
+$spacePath = Join-Path $env:TEMP "algopredict-ml-space"
+git clone "https://huggingface.co/spaces/$hfUser/$spaceName" $spacePath
+robocopy "$source\app" "$spacePath\app" /E /XD __pycache__
+robocopy "$source\examples" "$spacePath\examples" /E
+Copy-Item "$source\Dockerfile","$source\.dockerignore","$source\.gitignore","$source\requirements-docker.txt","$source\README.md" $spacePath -Force
+Set-Location $spacePath
+git add -A
+git commit -m "Deploy AlgoPredict ML service"
+git push origin main
+```
+
+`hf auth login` stores a Hugging Face write token in the local credential helper; do not put it in the remote URL or commit it. For the curl checks, use the Space URL `https://<HF_USERNAME>-<SPACE_NAME>.hf.space`, send `X-API-Key` for `/predict`, and expect 401 without it. The ready-made request bodies are in `ml-service/examples/predict_5m.json`, `predict_10m.json`, and `predict_30m.json`; detailed curl commands, local image build instructions, and expected startup/sleep behavior are in [ml-service/README.md](ml-service/README.md).
+
+```powershell
+$baseUrl = "https://YOUR_HF_USERNAME-algopredict-ml.hf.space"
+curl.exe -sS "$baseUrl/health"
+curl.exe -sS -X POST "$baseUrl/predict" -H "Content-Type: application/json" -H "X-API-Key: $env:ML_API_KEY" --data-binary "@ml-service/examples/predict_5m.json"
+```
+
+The local image reached `/health` in 17.3 seconds and completed its first prediction 27.6 seconds after container start. Hugging Face free hardware sleeps after inactivity, so wake-up adds variable latency; check the linked ML service README for deployment details.

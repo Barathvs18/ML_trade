@@ -1,3 +1,10 @@
+---
+title: AlgoPredict ML
+sdk: docker
+app_port: 7860
+pinned: false
+---
+
 # AlgoPredict ML Service
 
 FastAPI service for Nifty 50 paper-trading forecasts. The backend contract is `POST /predict` with `X-API-Key`; unauthenticated `GET /health` reports model readiness. Run one Uvicorn worker because the inference semaphore and TTL cache are in memory.
@@ -31,14 +38,63 @@ Run the test suite with `.venv\Scripts\python.exe -m pytest -q`.
 | `DEVICE` | `cpu` | Deployment device. Kronos is explicitly loaded on CPU. |
 | `KRONOS_MODEL` | `NeoQuasar/Kronos-small` | Hugging Face model ID (`small`, `base`, or `mini`). |
 | `KRONOS_TOKENIZER` | `NeoQuasar/Kronos-Tokenizer-base` | Matching tokenizer ID; mini requires `NeoQuasar/Kronos-Tokenizer-2k`. |
+| `KRONOS_MODEL_REVISION` | `901c26c1332695a2a8f243eb2f37243a37bea320` | Pinned Hugging Face revision for the model. |
+| `KRONOS_TOKENIZER_REVISION` | `0e0117387f39004a9016484a186a908917e22426` | Pinned Hugging Face revision for the tokenizer. |
 | `KRONOS_SAMPLES` | `10` | Independent sampled forecasts used for direction probability. |
 | `HF_TOKEN` | empty | Optional Hugging Face access token. |
 | `MODEL_CACHE_DIR` | `.model-cache` | Downloaded model cache; ignored by Git. |
 | `MAX_CONCURRENCY` | `1` | Maximum concurrent model inference jobs. |
 | `SIDEWAYS_THRESHOLD_PCT` | `0.05` | Direction threshold in percentage points; keep equal to the backend. |
-| `MODEL_MOCK` | `true` | Deterministic, offline mock mode. Set `false` to load real Kronos weights. |
+| `MODEL_MOCK` | `false` | Deterministic, offline mock mode. Set `true` only for local tests/development. |
 
-For real Kronos forecasts, set `MODEL_MOCK=false`. Startup downloads the selected model and tokenizer once to `MODEL_CACHE_DIR`; without network or usable weights the process still starts, `/health` reports that Kronos is unavailable, and prediction requests return 503. The default small model uses a 512-bar context; mini uses 2048 and requires its matching tokenizer. Requests contain at most 200 candles, and inference truncates to the loaded model's context if that is smaller.
+For real Kronos forecasts, set `MODEL_MOCK=false`. Outside the preloaded Docker image, startup downloads the selected model and tokenizer once to `MODEL_CACHE_DIR`; without network or usable weights the process still starts degraded, `/health` reports Kronos unavailable, and prediction requests return 503. The default small model uses a 512-bar context; mini uses 2048 and requires its matching tokenizer and matching pinned revisions. Requests contain at most 200 candles, and inference truncates to the loaded model's context if that is smaller.
+
+Startup requires a nonempty `ML_API_KEY` and exits with a clear critical log message if it is missing. The Docker image uses pinned model and tokenizer revisions and downloads both snapshots during its build; it sets Hugging Face offline mode at runtime. The image's Docker health check polls `/health`.
+
+## Hugging Face Spaces deployment
+
+Create a Space at [huggingface.co/new-space](https://huggingface.co/new-space), choose **Docker** as the SDK, and select **Public** or **Private** visibility. Docker Spaces use the `sdk: docker` and `app_port: 7860` metadata at the top of this README. In the Space's **Settings → Variables and secrets**, create the required secret `ML_API_KEY`; optionally add `HF_TOKEN` for Hugging Face Hub access. Do not put either secret in the Dockerfile, source files, Git remote URL, or commit history. The model repos are public and their pinned weights are baked into the image at build time, so `HF_TOKEN` is not needed for the normal build.
+
+The Space repository is separate from this GitHub repository. To publish only this `ml-service/` directory, install Git and the Hugging Face CLI, then authenticate interactively with a write access token (never paste the token into a command or commit it):
+
+```powershell
+py -m pip install --user -U huggingface_hub
+hf auth login
+
+$hfUser = "YOUR_HF_USERNAME"
+$spaceName = "algopredict-ml"
+$source = (Resolve-Path .\ml-service).Path
+$spacePath = Join-Path $env:TEMP "algopredict-ml-space"
+git clone "https://huggingface.co/spaces/$hfUser/$spaceName" $spacePath
+robocopy "$source\app" "$spacePath\app" /E /XD __pycache__
+if ($LASTEXITCODE -gt 7) { throw "Copying app failed: robocopy exit code $LASTEXITCODE" }
+robocopy "$source\examples" "$spacePath\examples" /E
+if ($LASTEXITCODE -gt 7) { throw "Copying examples failed: robocopy exit code $LASTEXITCODE" }
+Copy-Item "$source\Dockerfile","$source\.dockerignore","$source\.gitignore","$source\requirements-docker.txt","$source\README.md" $spacePath -Force
+Set-Location $spacePath
+git add -A
+git commit -m "Deploy AlgoPredict ML service"
+git push origin main
+```
+
+Git uses the token stored by `hf auth login` when it prompts for credentials. If a Space clone already exists, choose another empty `$spacePath` or remove the old clone yourself before running these commands.
+
+The Space API base URL is `https://<HF_USERNAME>-<SPACE_NAME>.hf.space`. From PowerShell in the project root, set the key through a masked prompt and test the endpoints:
+
+```powershell
+$hfUser = "YOUR_HF_USERNAME"
+$spaceName = "algopredict-ml"
+$baseUrl = "https://$hfUser-$spaceName.hf.space"
+$secureKey = Read-Host "ML_API_KEY" -AsSecureString
+$env:ML_API_KEY = [System.Net.NetworkCredential]::new("", $secureKey).Password
+curl.exe -sS "$baseUrl/health"
+curl.exe -sS -X POST "$baseUrl/predict" -H "Content-Type: application/json" -H "X-API-Key: $env:ML_API_KEY" --data-binary "@ml-service/examples/predict_5m.json"
+curl.exe -sS -X POST "$baseUrl/predict" -H "Content-Type: application/json" -H "X-API-Key: $env:ML_API_KEY" --data-binary "@ml-service/examples/predict_10m.json"
+curl.exe -sS -X POST "$baseUrl/predict" -H "Content-Type: application/json" -H "X-API-Key: $env:ML_API_KEY" --data-binary "@ml-service/examples/predict_30m.json"
+curl.exe -i -X POST "$baseUrl/predict" -H "Content-Type: application/json" --data-binary "@ml-service/examples/predict_5m.json"
+```
+
+The last request omits the key and should return **401**. Ready-made request bodies for all three horizons are in `examples/predict_5m.json`, `examples/predict_10m.json`, and `examples/predict_30m.json`. In the local Docker check, container start to `/health` readiness was 17.3 seconds and the first prediction completed 27.6 seconds after container start; Hugging Face allocation and wake times can be longer and vary with hardware. The image already contains weights, so it does not download them at runtime. Hugging Face free hardware sleeps after a period without traffic; the next request may wait for the Space to wake and start. The sleep interval and wake latency depend on selected hardware and platform state. See [Docker Spaces](https://huggingface.co/docs/hub/spaces-sdks-docker) and [Spaces overview](https://huggingface.co/docs/hub/spaces-overview) for current platform behavior.
 
 ## Forecast behavior
 
