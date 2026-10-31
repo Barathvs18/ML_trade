@@ -60,9 +60,11 @@ def test_auth_and_predict_contract():
             assert client.post("/predict",json={**payload,"horizon":99},headers={"X-API-Key":"test-secret"}).status_code==422
     finally:settings.ml_api_key=old
 
-def test_health_contract_and_model_unavailable_503():
+def test_health_contract_and_model_unavailable_503(monkeypatch):
     app=create_app()
     from app.config import settings
+    from app.models.kronos_model import KronosModel
+    monkeypatch.setattr(KronosModel,"load",classmethod(lambda cls:KronosModel(mock=False,available=False)))
     old=(settings.ml_api_key,settings.model_mock);settings.ml_api_key="test-secret";settings.model_mock=False
     try:
         with TestClient(app) as client:
