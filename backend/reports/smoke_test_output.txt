@@ -1,6 +1,12 @@
-Smoke test not executed.
-
-Attempted: docker compose up --build -d
-Result: Docker CLI could not connect to the Docker Desktop Linux engine: open //./pipe/dockerDesktopLinuxEngine: The system cannot find the file specified.
-
-The repeatable script is backend/scripts/smoke_test.py. Start Docker Desktop and run the instructions in the root README to execute the endpoint checks.
+GET /health -> 200 {'status': 'ok', 'db_ok': True, 'upstox_token_ok': False, 'feed_connected': True, 'ml_reachable': False, 'market_open': True, 'next_market_open': '2026-11-02T09:15:00+05:30', 'backfill': {'status': 'running', 'symbols_done': 0, 'symbols_total': 50, 'error': None}}
+GET /market/status -> 200
+GET /market/stocks -> 200 (50 stocks)
+GET /market/candles -> 200 (20 bars)
+POST /predictions -> 200
+GET /predictions/stats -> 200
+POST /paper/orders BUY -> 200
+POST /paper/positions close -> 200
+GET /paper/positions -> 200
+GET /paper/pnl -> 200
+GET /dashboard/summary -> 200
+WS /ws/prices -> tick {"type":"tick","symbol":"RELIANCE","ltp":694.4466804911733,"ts":"2026-10-31T10:39:37.939118+00:00"}

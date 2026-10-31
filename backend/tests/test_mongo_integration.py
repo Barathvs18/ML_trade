@@ -41,6 +41,20 @@ async def test_real_mongo_concurrent_orders_cannot_double_spend(mongo_database,m
     assert position["qty"]==sum(not isinstance(item,Exception) for item in outcomes)
 
 @pytest.mark.asyncio
+async def test_real_mongo_force_close_releases_margin(mongo_database,monkeypatch):
+    import app.modules.paper.engine as engine
+    user="integration-close"
+    await mongo_database.wallets.insert_one({"user_id":user,"balance":900.0,"blocked_margin":100.0,"realized_pnl":0.0,"version":0})
+    await mongo_database.positions.insert_one({"user_id":user,"symbol":"CLOSE","side":"LONG","qty":1,"avg_price":100.0,"version":0,"opened_at":datetime.now(timezone.utc)})
+    monkeypatch.setattr(engine,"is_market_open",lambda:False)
+    monkeypatch.setattr(engine.price_cache,"get",lambda _: {"ltp":110.0})
+    result=await engine.close_position(user,"CLOSE","auto_squareoff",force=True)
+    assert result["reason"]=="auto_squareoff"
+    assert await mongo_database.positions.count_documents({"user_id":user})==0
+    wallet=await mongo_database.wallets.find_one({"user_id":user})
+    assert wallet["blocked_margin"]==0 and wallet["realized_pnl"]>0
+
+@pytest.mark.asyncio
 async def test_replica_transaction_failure_rolls_back_wallet_and_position(mongo_database):
     user="integration-rollback";await mongo_database.wallets.insert_one({"user_id":user,"balance":500.0,"blocked_margin":0.0})
     session=await mongo_database.client.start_session()

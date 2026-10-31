@@ -144,7 +144,8 @@ async def _apply_close_fill(db,wallet,pos,side,qty,fill,reason,prediction_id=Non
         result=await db.positions.update_one({"_id":pos["_id"],"version":pver,"qty":{"$gte":qty}},{"$set":{"qty":rem},"$inc":{"version":1}})
     else:
         result=await db.positions.delete_one({"_id":pos["_id"],"version":pver,"qty":{"$gte":qty}})
-    if not result.modified_count and not result.deleted_count: raise AppError(409,"position_conflict","Position changed; retry close")
+    changed=result.modified_count if rem else result.deleted_count
+    if not changed: raise AppError(409,"position_conflict","Position changed; retry close")
     credited=released+gross-charges["total"]
     try:
         await _cas_wallet(db,user_id,wver,{"balance":credited,"blocked_margin":-released,"realized_pnl":realized})

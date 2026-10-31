@@ -15,7 +15,7 @@ For running the Python backend directly, activate `backend/.venv`, install `back
 
 | Variable | Purpose |
 |---|---|
-| `MONGO_URI`, `DB_NAME` | Replica-set MongoDB connection and database |
+| `MONGO_URI`, `DB_NAME`, `MONGO_PORT` | Replica-set MongoDB connection, database, and host-mapped Compose port (default `27018`) |
 | `JWT_SECRET`, `JWT_EXPIRE_MINUTES` | Signed session cookie configuration |
 | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_REDIRECT_URI` | Google OAuth credentials and callback |
 | `FRONTEND_URL` | CORS origin and post-login redirect |
@@ -32,13 +32,13 @@ Sign in through Google with an email listed in `ADMIN_EMAILS`, then open `GET /a
 
 ## Tests
 
-From `backend/`, run `.venv\\Scripts\\python.exe -m pytest` on Windows (or `.venv/bin/python -m pytest` on Unix). The unit suite has no network dependency. Integration tests are marked `integration` and skipped unless `TEST_MONGO_URI` points to a replica-set MongoDB; run them with `python -m pytest -m integration` after starting Compose and setting `TEST_MONGO_URI=mongodb://localhost:27017/?replicaSet=rs0`.
+From `backend/`, run `.venv\\Scripts\\python.exe -m pytest` on Windows (or `.venv/bin/python -m pytest` on Unix). The unit suite has no network dependency. Integration tests are marked `integration` and skipped unless `TEST_MONGO_URI` points to a replica-set MongoDB; run them with `python -m pytest -m integration` after starting Compose and setting `TEST_MONGO_URI=mongodb://localhost:27018/?replicaSet=rs0&directConnection=true` on Windows host (the direct connection avoids discovering the Compose-only hostname).
 
 The repeatable HTTP/WebSocket smoke check is `backend/scripts/smoke_test.py`. It uses a generated test JWT and a seeded local Mongo user, not an authentication bypass. Copy `.env.example` to `.env`, set `ENVIRONMENT=development`, `FEED_MODE=replay`, `ML_MOCK=true`, and `SMOKE_TEST_MODE=true`, run `docker compose up --build -d`, then run `backend/.venv/Scripts/python.exe backend/scripts/smoke_test.py` from the project root. Set `SMOKE_TEST_MODE=false` after the check. **Never enable smoke mode in production**; production defaults to `ENVIRONMENT=production`, which disables its market-hours override.
 
 ## Docker Compose and Mongo transactions
 
-Compose starts MongoDB as a single-node replica set (`rs0`) so transaction integration tests can exercise transaction rollback. The volume persists local data. Set `MONGO_URI` with `replicaSet=rs0` for backend and test clients.
+Compose starts MongoDB as a single-node replica set (`rs0`) so transaction integration tests can exercise transaction rollback. Mongo maps to host port `27018` by default to avoid clashing with an existing local MongoDB; override with `MONGO_PORT`. The volume persists local data. Set `MONGO_URI` with `replicaSet=rs0` for backend and test clients.
 
 ## Render deployment
 

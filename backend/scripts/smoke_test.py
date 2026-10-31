@@ -24,7 +24,8 @@ BASE=os.getenv("SMOKE_BASE_URL","http://127.0.0.1:8000")
 USER_ID="compose-smoke-user"
 
 def seed_test_user():
-    uri=os.getenv("MONGO_URI","mongodb://localhost:27017/?replicaSet=rs0").replace("mongo:27017","localhost:27017")
+    uri=os.getenv("MONGO_URI","mongodb://localhost:27017/?replicaSet=rs0").replace("mongo:27017",f"localhost:{os.getenv('SMOKE_MONGO_PORT','27018')}")
+    uri += "&directConnection=true" if "?" in uri else "?directConnection=true"
     mongo=pymongo.MongoClient(uri,serverSelectionTimeoutMS=5000)
     db=mongo[settings.db_name]
     db.users.update_one({"user_id":USER_ID},{"$set":{"user_id":USER_ID,"google_id":USER_ID,"email":"smoke@example.invalid","name":"Smoke Test"}},upsert=True)

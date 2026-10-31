@@ -14,6 +14,7 @@ def test_scheduler_registers_expected_triggers(monkeypatch):
     scheduler=jobs.build_scheduler()
     found={job.id:job for job in scheduler.get_jobs()}
     assert set(found)=={"upstox-token-check","prediction-resolver","equity-snapshot","paper-squareoff","paper-position-exits"}
+    assert all(job.func is jobs.safe_job for job in found.values())
     assert isinstance(found["upstox-token-check"].trigger,CronTrigger)
     assert isinstance(found["prediction-resolver"].trigger,IntervalTrigger)
     assert found["prediction-resolver"].trigger.interval.total_seconds()==60

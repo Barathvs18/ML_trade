@@ -11,7 +11,7 @@ router=APIRouter(prefix="/paper",tags=["paper"])
 async def place(body:dict,user=Depends(get_current_user)):
     symbol=str(body.get("symbol","")).upper()
     if not stock(symbol):raise AppError(422,"invalid_symbol","Invalid stock")
-    return await order(user["user_id"],symbol,body.get("side"),int(body.get("qty",0)),body.get("stop_loss"),body.get("target"),body.get("prediction_id"))
+    return api_value(await order(user["user_id"],symbol,body.get("side"),int(body.get("qty",0)),body.get("stop_loss"),body.get("target"),body.get("prediction_id")))
 @router.get("/wallet")
 async def get_wallet(user=Depends(get_current_user)):return api_value(await wallet(user["user_id"]))
 @router.get("/positions")
@@ -21,7 +21,7 @@ async def get_positions(user=Depends(get_current_user)):
 async def close(symbol:str,user=Depends(get_current_user)):
     p=await get_db().positions.find_one({"user_id":user["user_id"],"symbol":symbol.upper()})
     if not p:raise AppError(404,"not_found","Position not found")
-    return await close_position(user["user_id"],symbol.upper(),"manual",force=False)
+    return api_value(await close_position(user["user_id"],symbol.upper(),"manual",force=False))
 @router.get("/trades")
 async def trades(limit:int=Query(50,ge=1,le=200),user=Depends(get_current_user)):
     return api_value([r async for r in get_db().trades.find({"user_id":user["user_id"]}).sort("ts",-1).limit(limit)])

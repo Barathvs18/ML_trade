@@ -54,6 +54,12 @@ def test_auth_cookie_flags():
         assert morsel["httponly"] and morsel["secure"] and morsel["samesite"].lower()=="none"
     finally:settings.cookie_secure,settings.cookie_samesite=old
 
+def test_api_serializer_converts_mongo_object_ids():
+    from bson import ObjectId
+    from app.core.serialization import api_value
+    ident=ObjectId()
+    assert api_value({"_id":ident,"nested":[ident]})=={"_id":str(ident),"nested":[str(ident)]}
+
 def test_health_response_shape(monkeypatch):
     import app.db as db
     from app.main import app

@@ -16,7 +16,7 @@ services:
     command: ["mongod", "--replSet", "rs0", "--bind_ip_all"]
     restart: unless-stopped
     ports:
-      - "27017:27017"
+      - "${MONGO_PORT:-27018}:27017"
     volumes:
       - mongo_data:/data/db
     healthcheck:
