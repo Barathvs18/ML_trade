@@ -7,6 +7,7 @@ from apscheduler.triggers.cron import CronTrigger
 from apscheduler.triggers.interval import IntervalTrigger
 
 import app.scheduler as jobs
+from app.config import settings
 from app.core.timeutils import IST, is_market_open, next_market_open
 
 def test_scheduler_registers_expected_triggers(monkeypatch):
@@ -24,9 +25,48 @@ def test_scheduler_registers_expected_triggers(monkeypatch):
     assert isinstance(found["paper-position-exits"].trigger,IntervalTrigger)
     assert found["paper-position-exits"].trigger.interval.total_seconds()==2
 
-def test_market_open_skips_holiday_and_weekend():
-    assert not is_market_open(datetime(2026,1,26,10,0,tzinfo=IST))
-    assert not is_market_open(datetime(2026,1,24,10,0,tzinfo=IST))
+@pytest.mark.parametrize(
+    ("current", "expected"),
+    [
+        (datetime(2026, 11, 1, 10, 0, tzinfo=IST), False),  # Sunday
+        (datetime(2026, 1, 26, 10, 0, tzinfo=IST), False),  # NSE holiday
+        (datetime(2026, 1, 27, 9, 14, tzinfo=IST), False),
+        (datetime(2026, 1, 27, 9, 15, tzinfo=IST), True),
+        (datetime(2026, 1, 27, 15, 30, tzinfo=IST), False),
+        (datetime(2026, 1, 27, 15, 31, tzinfo=IST), False),
+    ],
+)
+def test_market_open_normal_mode_respects_calendar_and_session_boundaries(monkeypatch, current, expected):
+    monkeypatch.setattr(settings, "environment", "development")
+    monkeypatch.setattr(settings, "feed_mode", "replay")
+    monkeypatch.setattr(settings, "smoke_test_mode", False)
+    monkeypatch.setattr(settings, "replay_force_market_open", False)
+    assert is_market_open(current) is expected
+
+
+def test_replay_feed_alone_does_not_force_market_open(monkeypatch):
+    monkeypatch.setattr(settings, "environment", "development")
+    monkeypatch.setattr(settings, "feed_mode", "replay")
+    monkeypatch.setattr(settings, "smoke_test_mode", False)
+    monkeypatch.setattr(settings, "replay_force_market_open", False)
+    assert not is_market_open(datetime(2026, 11, 1, 10, 0, tzinfo=IST))
+
+
+def test_market_open_override_requires_smoke_and_dev_flags(monkeypatch):
+    sunday = datetime(2026, 11, 1, 10, 0, tzinfo=IST)
+    monkeypatch.setattr(settings, "environment", "development")
+    monkeypatch.setattr(settings, "feed_mode", "replay")
+    monkeypatch.setattr(settings, "smoke_test_mode", True)
+    monkeypatch.setattr(settings, "replay_force_market_open", True)
+    assert is_market_open(sunday)
+
+
+def test_market_open_override_is_ignored_in_production(monkeypatch):
+    monkeypatch.setattr(settings, "environment", "production")
+    monkeypatch.setattr(settings, "feed_mode", "replay")
+    monkeypatch.setattr(settings, "smoke_test_mode", True)
+    monkeypatch.setattr(settings, "replay_force_market_open", True)
+    assert not is_market_open(datetime(2026, 11, 1, 10, 0, tzinfo=IST))
 
 def test_next_market_open_skips_weekend_and_holiday():
     nxt=next_market_open(datetime(2026,1,23,16,0,tzinfo=IST))

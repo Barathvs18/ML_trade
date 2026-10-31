@@ -28,6 +28,7 @@ class Settings(BaseSettings):
     slippage_bps: float = 2.0
     environment: str = "production"
     smoke_test_mode: bool = False
+    replay_force_market_open: bool = False
 
     @property
     def admin_email_set(self) -> set[str]:

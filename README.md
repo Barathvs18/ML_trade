@@ -24,7 +24,7 @@ For running the Python backend directly, activate `backend/.venv`, install `back
 | `FEED_MODE` | `live` or offline synthetic `replay` feed |
 | `SIDEWAYS_THRESHOLD_PCT`, `STARTING_BALANCE`, `SQUAREOFF_TIME` | Prediction and paper-account settings |
 | `COOKIE_SECURE`, `COOKIE_SAMESITE` | Browser cookie flags; use secure HTTPS settings in production |
-| `ENVIRONMENT`, `SMOKE_TEST_MODE` | Runtime environment defaults to production; only explicit development/test replay enables the smoke-only market-hours override |
+| `ENVIRONMENT`, `SMOKE_TEST_MODE`, `REPLAY_FORCE_MARKET_OPEN` | Production ignores replay forcing. Market hours are only forced for a replay feed when both smoke mode and the explicit replay-force flag are true, and only outside production. Replay mode by itself never opens the market. |
 
 ## Upstox authorization
 
@@ -34,7 +34,7 @@ Sign in through Google with an email listed in `ADMIN_EMAILS`, then open `GET /a
 
 From `backend/`, run `.venv\\Scripts\\python.exe -m pytest` on Windows (or `.venv/bin/python -m pytest` on Unix). The unit suite has no network dependency. Integration tests are marked `integration` and skipped unless `TEST_MONGO_URI` points to a replica-set MongoDB; run them with `python -m pytest -m integration` after starting Compose and setting `TEST_MONGO_URI=mongodb://localhost:27018/?replicaSet=rs0&directConnection=true` on Windows host (the direct connection avoids discovering the Compose-only hostname).
 
-The repeatable HTTP/WebSocket smoke check is `backend/scripts/smoke_test.py`. It uses a generated test JWT and a seeded local Mongo user, not an authentication bypass. Copy `.env.example` to `.env`, set `ENVIRONMENT=development`, `FEED_MODE=replay`, `ML_MOCK=true`, and `SMOKE_TEST_MODE=true`, run `docker compose up --build -d`, then run `backend/.venv/Scripts/python.exe backend/scripts/smoke_test.py` from the project root. Set `SMOKE_TEST_MODE=false` after the check. **Never enable smoke mode in production**; production defaults to `ENVIRONMENT=production`, which disables its market-hours override.
+The repeatable HTTP/WebSocket smoke check is `backend/scripts/smoke_test.py`. It uses a generated test JWT and a seeded local Mongo user, not an authentication bypass. Copy `.env.example` to `.env`, set `ENVIRONMENT=development`, `FEED_MODE=replay`, `ML_MOCK=true`, `SMOKE_TEST_MODE=true`, and `REPLAY_FORCE_MARKET_OPEN=true`, run `docker compose up --build -d`, then run `backend/.venv/Scripts/python.exe backend/scripts/smoke_test.py` from the project root. Set both smoke flags to `false` after the check. Replay mode alone never changes market hours. **Never enable either override in production**; production ignores replay forcing regardless of flag values.
 
 ## Docker Compose and Mongo transactions
 
@@ -42,7 +42,7 @@ Compose starts MongoDB as a single-node replica set (`rs0`) so transaction integ
 
 ## Render deployment
 
-Build from `backend/` using the provided Dockerfile. Start command: `uvicorn app.main:app --host 0.0.0.0 --port $PORT`. Set a managed MongoDB Atlas replica-set URI, strong JWT secret, OAuth credentials and redirect URIs, `COOKIE_SECURE=true`, and `COOKIE_SAMESITE=none`. Deploy a single Uvicorn worker because the feed and caches are in process. Do not set `SMOKE_TEST_MODE=true` or `ENVIRONMENT` to a non-production value in production.
+Build from `backend/` using the provided Dockerfile. Start command: `uvicorn app.main:app --host 0.0.0.0 --port $PORT`. Set a managed MongoDB Atlas replica-set URI, strong JWT secret, OAuth credentials and redirect URIs, `COOKIE_SECURE=true`, and `COOKIE_SAMESITE=none`. Deploy a single Uvicorn worker because the feed and caches are in process. Do not set `SMOKE_TEST_MODE=true` or `REPLAY_FORCE_MARKET_OPEN=true` in production. `FEED_MODE=replay` only selects the synthetic feed; it does not alter the NSE calendar or market clock.
 
 ## Market calendar
 

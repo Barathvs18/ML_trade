@@ -30,9 +30,12 @@ def to_ist(value: datetime) -> datetime:
 
 def is_market_open(value: datetime | None = None) -> bool:
     from app.config import settings
-    if settings.smoke_test_mode:
-        if settings.environment.lower() == "production":
-            return False
+    if (
+        settings.environment.casefold() != "production"
+        and settings.smoke_test_mode
+        and settings.feed_mode.casefold() == "replay"
+        and settings.replay_force_market_open
+    ):
         return True
     current = to_ist(value) if value else now_ist()
     return is_trading_day(current) and time(9,15) <= current.time() < time(15,30)

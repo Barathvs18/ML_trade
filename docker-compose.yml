@@ -4,8 +4,11 @@ services:
     env_file: .env
     environment:
       MONGO_URI: ${MONGO_URI:-mongodb://mongo:27017/?replicaSet=rs0}
-      ENVIRONMENT: ${ENVIRONMENT:-development}
+      FEED_MODE: ${FEED_MODE:-live}
+      ML_MOCK: ${ML_MOCK:-false}
+      ENVIRONMENT: ${ENVIRONMENT:-production}
       SMOKE_TEST_MODE: ${SMOKE_TEST_MODE:-false}
+      REPLAY_FORCE_MARKET_OPEN: ${REPLAY_FORCE_MARKET_OPEN:-false}
     ports:
       - "8000:8000"
     depends_on:

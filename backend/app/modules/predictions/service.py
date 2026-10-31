@@ -21,6 +21,8 @@ async def get_or_create_prediction(user,symbol,horizon):
     now=datetime.now(timezone.utc); minutes=horizon
     resolve=now+timedelta(minutes=minutes)
     pred={"user_id":user["user_id"],"symbol":symbol,"horizon":horizon,"model":model.get("model"),"made_at":now,"entry_price":tick["ltp"],"direction":model["direction"],"probability":model["probability"],"confidence":model["confidence"],"forecast_close":model["forecast_close"],"resolve_at":resolve,"status":"pending"}
+    if model.get("probabilities") is not None:
+        pred["probabilities"]=model["probabilities"]
     result=await get_db().predictions.insert_one(pred); pred["_id"]=result.inserted_id
     pred["disclaimer"]="Educational only, not financial advice"
     return pred
