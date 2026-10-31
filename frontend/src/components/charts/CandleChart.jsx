@@ -1,5 +1,19 @@
 import { useEffect, useMemo, useRef } from "react";
-import { ColorType, createChart } from "lightweight-charts";
+import { ColorType, createChart, TickMarkType } from "lightweight-charts";
+
+function formatIstTick(time, tickMarkType) {
+  let date;
+  if (typeof time === "number") date = new Date(time * 1000);
+  else date = new Date(Date.UTC(time.year, time.month - 1, time.day));
+  const options = tickMarkType === TickMarkType.Time || tickMarkType === TickMarkType.TimeWithSeconds
+    ? { hour: "2-digit", minute: "2-digit", hourCycle: "h23" }
+    : tickMarkType === TickMarkType.Year
+      ? { year: "numeric" }
+      : tickMarkType === TickMarkType.Month
+        ? { month: "short", year: "2-digit" }
+        : { day: "2-digit", month: "short" };
+  return new Intl.DateTimeFormat("en-IN", { ...options, timeZone: "Asia/Kolkata" }).format(date);
+}
 
 function normalizeCandle(candle) {
   const rawTime = candle.time ?? candle.t ?? candle.start;
@@ -31,7 +45,7 @@ export default function CandleChart({ candles = [], volume, markers = [], height
       layout: { background: { type: ColorType.Solid, color: "rgba(255,255,255,0)" }, textColor: "#64748b", fontFamily: "Inter, sans-serif", fontSize: 11 },
       grid: { vertLines: { color: "rgba(148,163,184,0.12)" }, horzLines: { color: "rgba(148,163,184,0.16)" } },
       rightPriceScale: { borderColor: "rgba(148,163,184,0.25)", scaleMargins: { top: 0.08, bottom: 0.24 } },
-      timeScale: { borderColor: "rgba(148,163,184,0.25)", timeVisible: true, secondsVisible: false, rightOffset: 3 },
+      timeScale: { borderColor: "rgba(148,163,184,0.25)", timeVisible: true, secondsVisible: false, rightOffset: 3, tickMarkFormatter: formatIstTick },
       crosshair: { vertLine: { color: "rgba(100,116,139,0.35)", labelBackgroundColor: "#334155" }, horzLine: { color: "rgba(100,116,139,0.35)", labelBackgroundColor: "#334155" } },
       localization: { locale: "en-IN" },
     });

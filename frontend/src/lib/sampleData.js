@@ -69,7 +69,7 @@ export function generateSampleLine(count = 40, seed = 17, startPrice = 2450) {
 }
 
 export const SAMPLE_STOCKS = [
-  { symbol: "RELIANCE", name: "Reliance Industries", price: 1428.4, change: 0.62, seed: 101 },
-  { symbol: "TCS", name: "Tata Consultancy Services", price: 3241.8, change: -0.24, seed: 202 },
-  { symbol: "HDFCBANK", name: "HDFC Bank", price: 1786.2, change: 0.38, seed: 303 },
+  { symbol: "RELIANCE", name: "Reliance Industries", seed: 101, startPrice: 1428 },
+  { symbol: "TCS", name: "Tata Consultancy Services", seed: 202, startPrice: 3242 },
+  { symbol: "HDFCBANK", name: "HDFC Bank", seed: 303, startPrice: 1786 },
 ];
