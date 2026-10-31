@@ -10,7 +10,6 @@ from app.config import settings
 IST = ZoneInfo("Asia/Kolkata")
 SESSION_OPEN = time(9, 15)
 SESSION_CLOSE = time(15, 30)
-BAR_MINUTES = 5
 MODEL_CONFIG = {
     "small": (512, "Kronos-Tokenizer-base"),
     "base": (512, "Kronos-Tokenizer-base"),
@@ -18,17 +17,23 @@ MODEL_CONFIG = {
 }
 
 
-def future_bar_timestamps(last_timestamp: datetime, pred_len: int) -> list[datetime]:
-    """Return 5-minute NSE bar-start timestamps, rolling close/weekends forward."""
-    if pred_len not in (1, 2):
-        raise ValueError("Kronos prediction length must be one or two bars")
+def future_bar_timestamps(
+    last_timestamp: datetime,
+    pred_len: int,
+    interval_minutes: int = 5,
+) -> list[datetime]:
+    """Return 5m/30m NSE bar starts, rolling session close and weekends forward."""
+    if interval_minutes not in (5, 30):
+        raise ValueError("Kronos candles must use a 5- or 30-minute interval")
+    if pred_len not in (1, 2) or (interval_minutes == 30 and pred_len != 1):
+        raise ValueError("Kronos supports 1/2 bars at 5m and 1 bar at 30m")
     if last_timestamp.tzinfo is None or last_timestamp.utcoffset() is None:
         raise ValueError("bar timestamp must include a timezone")
 
     current = last_timestamp.astimezone(IST)
     future = []
     for _ in range(pred_len):
-        candidate = current + timedelta(minutes=BAR_MINUTES)
+        candidate = current + timedelta(minutes=interval_minutes)
         if candidate.time() >= SESSION_CLOSE:
             session_date = candidate.date() + timedelta(days=1)
             while session_date.weekday() >= 5:
@@ -44,11 +49,12 @@ class KronosModel:
     predictor: object | None = None
     mock: bool = True
     available: bool = True
+    max_context: int = 512
 
     @classmethod
     def load(cls):
         if settings.model_mock:
-            return cls(mock=True, available=True)
+            return cls(mock=True, available=True, max_context=512)
 
         model_key = settings.kronos_model.rsplit("/", 1)[-1].lower()
         variant = next((name for name in MODEL_CONFIG if name in model_key), None)
@@ -70,15 +76,25 @@ class KronosModel:
         tokenizer.eval()
         model.eval()
         predictor = KronosPredictor(model, tokenizer, device="cpu", max_context=context)
-        return cls(predictor=predictor, mock=False, available=True)
+        return cls(predictor=predictor, mock=False, available=True, max_context=context)
 
-    def forecast_paths(self, candles: list[dict], pred_len: int, samples: int) -> list[float]:
+    def forecast_paths(
+        self,
+        candles: list[dict],
+        pred_len: int,
+        samples: int,
+        interval_minutes: int = 5,
+    ) -> list[float]:
         if not candles:
             raise ValueError("Kronos requires at least one candle")
-        if pred_len not in (1, 2):
-            raise ValueError("Kronos prediction length must be one or two bars")
+        if interval_minutes not in (5, 30):
+            raise ValueError("Kronos candles must use a 5- or 30-minute interval")
+        if pred_len not in (1, 2) or (interval_minutes == 30 and pred_len != 1):
+            raise ValueError("Kronos supports 1/2 bars at 5m and 1 bar at 30m")
         if samples < 1:
             raise ValueError("Kronos sample count must be positive")
+
+        candles=candles[-max(1,self.max_context):]
 
         last = float(candles[-1]["c"])
         if self.mock:
@@ -103,7 +119,7 @@ class KronosModel:
         )
         # Kronos expects OHLCV plus amount; the backend contract has no amount field.
         frame["amount"] = frame["close"] * frame["volume"]
-        future = pd.Series(future_bar_timestamps(candles[-1]["t"], pred_len))
+        future = pd.Series(future_bar_timestamps(candles[-1]["t"], pred_len, interval_minutes))
 
         forecasts = []
         for _ in range(samples):

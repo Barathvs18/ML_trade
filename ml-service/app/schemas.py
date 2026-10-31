@@ -50,22 +50,29 @@ class PredictRequest(BaseModel):
     @model_validator(mode="after")
     def validate_sequence(self):
         interval=30 if self.horizon==30 else 5
-        minimum=settings.min_lpatchtst_candles if self.horizon==30 else settings.min_kronos_candles
+        minimum=settings.min_kronos_candles
         if len(self.candles)<minimum:raise ValueError(f"at least {minimum} candles are required for horizon {self.horizon}")
         times=[item.t for item in self.candles]
         if any(b<=a for a,b in zip(times,times[1:])):raise ValueError("candle timestamps must be strictly increasing")
         expected=interval*60
-        for previous,current in zip(times,times[1:]):
+        session_open_minutes=9*60+15
+        last_bar_offset=((6*60+15-1)//interval)*interval
+        last_bar_minute=session_open_minutes+last_bar_offset
+        last_bar_time=datetime_time(last_bar_minute//60,last_bar_minute%60)
+        local_times=[value.astimezone(IST) for value in times]
+        for local in local_times:
+            minute_offset=local.hour*60+local.minute-session_open_minutes
+            if minute_offset<0 or minute_offset>last_bar_offset or minute_offset%interval:
+                raise ValueError(f"candle timestamps must align to the {interval}-minute NSE session grid starting at 09:15 IST")
+        for previous,current,prev_local,current_local in zip(times,times[1:],local_times,local_times[1:]):
             if (current-previous).total_seconds()==expected:
                 continue
             # Intraday bars are continuous within a session. A gap is allowed only
-            # across the overnight/session boundary (including weekends/holidays).
-            prev_ist=previous.astimezone(IST)
-            current_ist=current.astimezone(IST)
+            # between the backend's final bar start and the next 09:15 session bar.
             is_session_gap=(
-                current_ist.date()>prev_ist.date()
-                and current_ist.time().replace(tzinfo=None)==datetime_time(9,15)
-                and prev_ist.time().replace(tzinfo=None)>=datetime_time(14,30)
+                current_local.date()>prev_local.date()
+                and current_local.time().replace(tzinfo=None)==datetime_time(9,15)
+                and prev_local.time().replace(tzinfo=None)==last_bar_time
             )
             if not is_session_gap:
                 raise ValueError(f"candle spacing must be {interval} minutes within a session; only overnight session gaps are allowed")
@@ -75,7 +82,7 @@ class PredictResponse(BaseModel):
     direction:Literal["UP","DOWN","SIDEWAYS"]
     probability:float=Field(ge=0,le=1)
     confidence:Literal["low","medium","high"]
-    model:Literal["kronos","lpatchtst"]
+    model:Literal["kronos"]
     horizon:int
     forecast_close:float
     latency_ms:int=Field(ge=0)

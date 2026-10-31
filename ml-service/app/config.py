@@ -9,7 +9,6 @@ class Settings(BaseSettings):
     kronos_model:str="NeoQuasar/Kronos-small"
     kronos_tokenizer:str="NeoQuasar/Kronos-Tokenizer-base"
     kronos_samples:int=Field(default=5,ge=1,le=32)
-    lpatchtst_repo:str="gulnawaz123/Features_Pretrain_30m_2"
     hf_token:str|None=None
     model_cache_dir:str=".model-cache"
     max_concurrency:int=Field(default=1,ge=1,le=64)
@@ -17,7 +16,6 @@ class Settings(BaseSettings):
     model_mock:bool=True
     cache_ttl_seconds:int=1800
     min_kronos_candles:int=Field(default=10,ge=2)
-    min_lpatchtst_candles:int=Field(default=10,ge=2)
     confidence_low:float=Field(default=0.45,ge=0,le=1)
     confidence_high:float=Field(default=0.60,ge=0,le=1)
 

@@ -14,20 +14,19 @@ def test_direction_boundaries_and_probability():
     assert result["direction"]=="UP" and result["probability"]==.75
     assert result["confidence"]=="high"
 
-def test_router_selects_kronos_steps_and_lpatchtst():
+def test_router_selects_kronos_interval_and_prediction_steps_for_all_horizons():
     class Kronos:
         available=True
-        def forecast_paths(self,data,pred_len,samples):self_len.append((pred_len,samples));return [102]*samples
-    class Lpatch:
-        available=True
-        def forecast_close(self,data):lpatch_calls.append(True);return 102
-    self_len=[];lpatch_calls=[]
-    app=type("App",(),{"state":type("State",(),{"kronos":Kronos(),"lpatchtst":Lpatch()})()})()
+        def forecast_paths(self,data,pred_len,samples,interval_minutes=5):
+            self_len.append((pred_len,samples,interval_minutes,len(data)))
+            return [102]*samples
+    self_len=[]
+    app=type("App",(),{"state":type("State",(),{"kronos":Kronos()})()})()
     _compute(app,PredictRequest(symbol="RELIANCE",horizon=5,candles=candles()))
     _compute(app,PredictRequest(symbol="RELIANCE",horizon=10,candles=candles()))
     response=_compute(app,PredictRequest(symbol="RELIANCE",horizon=30,candles=candles(12,30)))
-    assert self_len==[(1,5),(2,5)] and lpatch_calls==[True]
-    assert response["model"]=="lpatchtst" and response["probability"]==.5
+    assert self_len==[(1,5,5,12),(2,5,5,12),(1,5,30,12)]
+    assert response["model"]=="kronos" and response["horizon"]==30
 
 def test_cache_single_flight_concurrency():
     async def run():

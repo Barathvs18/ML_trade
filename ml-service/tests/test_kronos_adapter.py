@@ -23,6 +23,14 @@ def test_future_timestamps_roll_over_nse_close_and_skip_weekends():
     assert got == [datetime(2026, 1, 5, 9, 15, tzinfo=IST), datetime(2026, 1, 5, 9, 20, tzinfo=IST)]
 
 
+def test_30m_future_timestamps_follow_backend_grid_and_skip_weekend():
+    friday = datetime(2026, 1, 2, 14, 45, tzinfo=IST)
+    assert future_bar_timestamps(friday, 1, interval_minutes=30) == [datetime(2026, 1, 2, 15, 15, tzinfo=IST)]
+    assert future_bar_timestamps(datetime(2026, 1, 2, 15, 15, tzinfo=IST), 1, interval_minutes=30) == [
+        datetime(2026, 1, 5, 9, 15, tzinfo=IST)
+    ]
+
+
 def test_adapter_requests_individual_sample_paths_with_amount_and_future_grid():
     class FakePredictor:
         def __init__(self):
@@ -79,4 +87,20 @@ def test_loader_uses_matching_tokenizer_and_model_context(monkeypatch):
 
     assert loaded.available and not loaded.mock
     assert calls["predictor"] == ("cpu", 2048)
+    assert loaded.max_context == 2048
+
+
+def test_input_is_truncated_to_loaded_model_context():
+    class FakePredictor:
+        def predict(self, **kwargs):
+            self.kwargs = kwargs
+            return pd.DataFrame({"close": [140.0]})
+
+    predictor = FakePredictor()
+    candles = friday_close_candles(12)
+    model = KronosModel(predictor=predictor, mock=False, available=True, max_context=8)
+    model.forecast_paths(candles, pred_len=1, samples=1)
+
+    assert len(predictor.kwargs["df"]) == 8
+    assert predictor.kwargs["x_timestamp"].iloc[0].to_pydatetime() == candles[-8]["t"]
 
