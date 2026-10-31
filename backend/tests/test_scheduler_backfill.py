@@ -13,13 +13,15 @@ def test_scheduler_registers_expected_triggers(monkeypatch):
     monkeypatch.setattr(jobs.settings,"squareoff_time","15:20")
     scheduler=jobs.build_scheduler()
     found={job.id:job for job in scheduler.get_jobs()}
-    assert set(found)=={"upstox-token-check","prediction-resolver","equity-snapshot","paper-squareoff"}
+    assert set(found)=={"upstox-token-check","prediction-resolver","equity-snapshot","paper-squareoff","paper-position-exits"}
     assert isinstance(found["upstox-token-check"].trigger,CronTrigger)
     assert isinstance(found["prediction-resolver"].trigger,IntervalTrigger)
     assert found["prediction-resolver"].trigger.interval.total_seconds()==60
     assert found["equity-snapshot"].trigger.interval.total_seconds()==300
     assert str(found["paper-squareoff"].trigger.fields[5].expressions[0])=="15"
     assert str(found["paper-squareoff"].trigger.fields[6].expressions[0])=="20"
+    assert isinstance(found["paper-position-exits"].trigger,IntervalTrigger)
+    assert found["paper-position-exits"].trigger.interval.total_seconds()==2
 
 def test_market_open_skips_holiday_and_weekend():
     assert not is_market_open(datetime(2026,1,26,10,0,tzinfo=IST))

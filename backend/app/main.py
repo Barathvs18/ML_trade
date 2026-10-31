@@ -21,6 +21,10 @@ async def lifespan(app: FastAPI):
     try:
         await connect_db()
         app.state.db_ok = True
+        from app.modules.paper.engine import rebuild_position_index
+        from app.modules.paper.squareoff import recover_previous_day_positions
+        await rebuild_position_index()
+        await recover_previous_day_positions()
     except Exception:
         app.state.db_ok = False
         logger.exception("Database connection failed")

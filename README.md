@@ -16,6 +16,9 @@ Build from `backend/` on Render and start with `uvicorn app.main:app --host 0.0.
 ### Market calendar
 `backend/app/data/holidays.json` drives Indian market-day checks. **Verify against the NSE holiday calendar** at the start of each year; holiday dates can change.
 
+### Paper position reversal policy
+Paper orders cannot implicitly reverse a position. An opposite-side order larger than the open quantity is rejected; close the existing position first, then open the reverse side in a separate order.
+
 ### Documented implementation limitations
 Upstox currently documents Market Data Feed V3 as protobuf over WebSocket and historical candle V3 with a unit and interval. The live feed adapter and complete protobuf decoder are not included yet. The supplied instrument list is incomplete; verify instrument keys against the official instruments file before live use. The V2 candle paths are retained as an adapter placeholder and should be migrated to V3. Replay mode is synthetic and is not market data.
 

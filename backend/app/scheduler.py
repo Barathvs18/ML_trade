@@ -52,6 +52,10 @@ async def square_off():
     from app.modules.paper.squareoff import square_off_all
     await square_off_all()
 
+async def position_exit_check():
+    from app.modules.paper.engine import evaluate_exits
+    await evaluate_exits()
+
 def build_scheduler() -> AsyncIOScheduler:
     scheduler=AsyncIOScheduler(timezone=IST)
     scheduler.add_job(lambda:safe_job("token_check",token_check),CronTrigger(day_of_week="mon-fri",hour=8,minute=45,timezone=IST),id="upstox-token-check",coalesce=True,misfire_grace_time=3600)
@@ -59,6 +63,7 @@ def build_scheduler() -> AsyncIOScheduler:
     scheduler.add_job(lambda:safe_job("equity_snapshot",snapshot_equity,market_hours=True),IntervalTrigger(minutes=5,timezone=IST),id="equity-snapshot",coalesce=True,max_instances=1)
     hour,minute=(int(part) for part in settings.squareoff_time.split(":"))
     scheduler.add_job(lambda:safe_job("squareoff",square_off),CronTrigger(day_of_week="mon-fri",hour=hour,minute=minute,timezone=IST),id="paper-squareoff",coalesce=True,misfire_grace_time=300)
+    scheduler.add_job(lambda:safe_job("position-exits",position_exit_check,market_hours=True),IntervalTrigger(seconds=2,timezone=IST),id="paper-position-exits",coalesce=True,max_instances=1)
     return scheduler
 
 async def backfill_candles():

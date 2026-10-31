@@ -1,9 +1,16 @@
 from app.db import get_db
-from app.modules.paper.engine import order
-from app.modules.market.price_cache import price_cache
+from app.modules.paper.engine import close_position
 
 async def square_off_all():
-    async for p in get_db().positions.find({}):
-        if price_cache.get(p["symbol"]):
-            try: await order(p["user_id"],p["symbol"],"SELL" if p["side"]=="LONG" else "BUY",p["qty"])
+    async for position in get_db().positions.find({}):
+        try: await close_position(position["user_id"],position["symbol"],"auto_squareoff",force=True)
+        except Exception: continue
+
+async def recover_previous_day_positions():
+    from app.core.timeutils import to_ist, now_ist
+    today=now_ist().date()
+    async for position in get_db().positions.find({}):
+        opened=position.get("opened_at")
+        if opened and to_ist(opened).date()<today:
+            try: await close_position(position["user_id"],position["symbol"],"startup_recovery",force=True)
             except Exception: continue
