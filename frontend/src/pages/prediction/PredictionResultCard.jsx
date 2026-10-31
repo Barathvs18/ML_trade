@@ -31,7 +31,7 @@ function useCountdown(resolveAt, pending) {
   return formatCountdown(resolveAt, now);
 }
 
-export default function PredictionResultCard({ prediction, loading, error, onRetry, readOnly = false, allowTrade = false, currentPrice, marketOpen, onOrderPlaced }) {
+export default function PredictionResultCard({ prediction, loading, error, onRetry, readOnly = false, allowTrade = false, currentPrice, marketOpen, onOrderPlaced, tradeReceipt }) {
   const pending = prediction?.status === "pending";
   const reveal = getPredictionReveal(prediction);
   const countdown = useCountdown(prediction?.resolve_at, pending);
@@ -61,7 +61,7 @@ export default function PredictionResultCard({ prediction, loading, error, onRet
       {Number.isFinite(Number(reveal.actualReturnPct)) && <p className="mt-2 text-sm text-slate-700">Actual return: <span className={`font-semibold ${Number(reveal.actualReturnPct) >= 0 ? "text-emerald-700" : "text-red-600"}`}>{Number(reveal.actualReturnPct) >= 0 ? "+" : ""}{Number(reveal.actualReturnPct).toFixed(3)}%</span></p>}
       <p className="mt-2 text-xs leading-5 text-slate-600">An “always sideways” guess would have been {reveal.baselineCorrect ? "right" : "wrong"} here.</p>
     </div>}
-    {allowTrade && pending && !readOnly && <PredictionTradePanel prediction={prediction} currentPrice={currentPrice} marketOpen={marketOpen} onPlaced={onOrderPlaced} />}
+    {((allowTrade && pending) || (tradeReceipt && tradeReceipt.prediction_id === prediction._id)) && !readOnly && <PredictionTradePanel prediction={prediction} currentPrice={currentPrice} marketOpen={marketOpen} onPlaced={onOrderPlaced} receipt={tradeReceipt} />}
     {pending && readOnly && <p className="mt-4 text-xs text-slate-500">Read-only history detail. The prediction outcome is still pending.</p>}
   </GlassCard>;
 }

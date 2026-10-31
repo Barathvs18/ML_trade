@@ -17,14 +17,14 @@ function tradeErrorMessage(error) {
   return error.response?.data?.error?.message ?? error.response?.data?.detail?.error?.message ?? "The paper order could not be placed.";
 }
 
-export default function PredictionTradePanel({ prediction, currentPrice, marketOpen, onPlaced }) {
+export default function PredictionTradePanel({ prediction, currentPrice, marketOpen, onPlaced, receipt }) {
   const queryClient = useQueryClient();
   const [side, setSide] = useState(prediction.direction === "UP" ? "BUY" : prediction.direction === "DOWN" ? "SELL" : "");
   const [quantity, setQuantity] = useState("1");
   const [stopLoss, setStopLoss] = useState("");
   const [target, setTarget] = useState("");
   const [confirmOpen, setConfirmOpen] = useState(false);
-  const [filledTrade, setFilledTrade] = useState(null);
+  const [filledTrade, setFilledTrade] = useState(receipt ?? null);
 
   useEffect(() => {
     setSide(prediction.direction === "UP" ? "BUY" : prediction.direction === "DOWN" ? "SELL" : "");
@@ -33,6 +33,10 @@ export default function PredictionTradePanel({ prediction, currentPrice, marketO
     setTarget("");
     setFilledTrade(null);
   }, [prediction._id, prediction.direction]);
+
+  useEffect(() => {
+    if (receipt) setFilledTrade(receipt);
+  }, [receipt]);
 
   const estimatedPrice = Number(currentPrice || prediction.entry_price) * (side === "BUY" ? 1.0002 : side === "SELL" ? 0.9998 : 1);
   const qty = Number(quantity);

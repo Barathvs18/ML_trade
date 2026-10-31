@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft, ArrowRight, Clock3, Sparkles } from "lucide-react";
 import { Link } from "react-router-dom";
@@ -74,6 +74,7 @@ export default function PredictionPage() {
   const [horizon, setHorizon] = useState(5);
   const [latestId, setLatestId] = useState("");
   const [historySelection, setHistorySelection] = useState(null);
+  const [tradeReceipt, setTradeReceipt] = useState(null);
   const stockQuery = useQuery({ queryKey: queryKeys.stocks(""), queryFn: () => getStocks(""), staleTime: 5 * 60_000, retry: 1 });
   const stocks = useMemo(() => Array.isArray(stockQuery.data) ? stockQuery.data : [], [stockQuery.data]);
   const validSymbols = useMemo(() => new Set(stocks.map((stockRow) => stockRow.symbol)), [stocks]);
@@ -89,6 +90,12 @@ export default function PredictionPage() {
     retry: 1,
   });
   const prediction = predictionQuery.data;
+  useEffect(() => {
+    if (prediction?.status === "resolved") {
+      queryClient.invalidateQueries({ queryKey: ["predictions"] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.predictionStats });
+    }
+  }, [prediction?._id, prediction?.status, queryClient]);
   const chartSymbol = historySelection?.symbol || prediction?.symbol || symbol;
   const chartHorizon = historySelection?.horizon || prediction?.horizon || horizon;
   const mutation = useMutation({
@@ -96,6 +103,7 @@ export default function PredictionPage() {
     onSuccess: (created) => {
       setHistorySelection(null);
       setLatestId(created._id);
+      setTradeReceipt(null);
       queryClient.setQueryData(queryKeys.predictionDetail(created._id), created);
       queryClient.invalidateQueries({ queryKey: ["predictions"] });
     },
@@ -156,7 +164,7 @@ export default function PredictionPage() {
         <p className="mt-3 text-[11px] leading-5 text-slate-500">Educational only, not financial advice. All trading is simulated with virtual money.</p>
       </GlassCard>
 
-      <PredictionResultCard prediction={prediction} loading={predictionQuery.isLoading && !historySelection} error={Boolean(activeId && predictionQuery.isError)} onRetry={() => predictionQuery.refetch()} readOnly={Boolean(historySelection)} allowTrade={allowTrade} currentPrice={livePrice} marketOpen={marketOpen} />
+      <PredictionResultCard prediction={prediction} loading={predictionQuery.isLoading && !historySelection} error={Boolean(activeId && predictionQuery.isError)} onRetry={() => predictionQuery.refetch()} readOnly={Boolean(historySelection)} allowTrade={allowTrade} currentPrice={livePrice} marketOpen={marketOpen} tradeReceipt={tradeReceipt} onOrderPlaced={(fill) => setTradeReceipt({ ...fill, prediction_id: fill.prediction_id ?? prediction?._id })} />
     </section>
 
     <div className="mt-4"><PredictionChart symbol={chartSymbol} horizon={chartHorizon} prediction={prediction} onBarClosed={onBarClosed} /></div>

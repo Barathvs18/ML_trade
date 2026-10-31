@@ -52,7 +52,9 @@ export default function Navbar() {
     <nav aria-label="Main navigation" className="glass-card mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 py-3 sm:px-5">
       <Brand onClick={closeMenu} />
       <div className="hidden items-center gap-5 lg:flex">
-        {navLinks.map((item) => <a key={item.label} className="text-[13px] font-medium text-slate-600 transition hover:text-slate-950" href={item.href}>{item.label}</a>)}
+        {navLinks.map((item) => item.href.startsWith("/") && !item.href.startsWith("/#")
+          ? <Link key={item.label} className="text-[13px] font-medium text-slate-600 transition hover:text-slate-950" to={item.href}>{item.label}</Link>
+          : <a key={item.label} className="text-[13px] font-medium text-slate-600 transition hover:text-slate-950" href={item.href}>{item.label}</a>)}
       </div>
       <div className="hidden flex-1 justify-center px-2 xl:flex">
         {user && <div className="relative w-full max-w-[270px]">
@@ -101,7 +103,9 @@ export default function Navbar() {
         <label className="flex h-11 items-center gap-2 rounded-full border border-slate-200 bg-white/75 px-3 text-slate-400"><Search size={16} aria-hidden="true" /><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search Nifty 50" aria-label="Search Nifty 50 stocks" className="min-w-0 flex-1 bg-transparent text-sm text-slate-700 outline-none" /></label>
         {search && <div className="mt-1 rounded-xl bg-white p-1">{stocks.map((stock) => <Link key={stock.symbol} to={`/dashboard?symbol=${encodeURIComponent(stock.symbol)}`} onClick={closeMenu} className="block rounded-lg px-3 py-2 text-sm hover:bg-emerald-50"><b>{stock.symbol}</b><span className="ml-2 text-slate-500">{stock.name}</span></Link>)}</div>}
       </div>}
-      {navLinks.map((item) => <a key={item.label} href={item.href} onClick={closeMenu} className="block rounded-xl px-3 py-3 text-sm font-medium text-slate-700 hover:bg-white/80">{item.label}</a>)}
+      {navLinks.map((item) => item.href.startsWith("/") && !item.href.startsWith("/#")
+        ? <Link key={item.label} to={item.href} onClick={closeMenu} className="block rounded-xl px-3 py-3 text-sm font-medium text-slate-700 hover:bg-white/80">{item.label}</Link>
+        : <a key={item.label} href={item.href} onClick={closeMenu} className="block rounded-xl px-3 py-3 text-sm font-medium text-slate-700 hover:bg-white/80">{item.label}</a>)}
       <div className="border-t border-slate-200/70 pt-3">
         {user ? <div className="flex items-center justify-between px-2"><Badge kind="neutral" className="max-w-[65%] truncate">{user.name || user.email}</Badge><Button variant="ghost" size="sm" onClick={handleLogout}><LogOut size={15} />Log out</Button></div> : <div className="flex gap-2"><Button variant="secondary" className="flex-1" onClick={signIn}>Log in</Button><Button className="flex-1" onClick={signIn}>Get Started</Button></div>}
       </div>
