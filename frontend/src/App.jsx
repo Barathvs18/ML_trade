@@ -1,6 +1,7 @@
 import { BrowserRouter, Navigate, Route, Routes, useLocation } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { AuthProvider } from "./auth/AuthProvider";
+import { LivePricesProvider } from "./hooks/LivePricesProvider";
 import { useAuth } from "./auth/useAuth";
 import Navbar from "./components/Navbar";
 import Footer from "./components/Footer";
@@ -41,5 +42,5 @@ function AppRoutes() {
 }
 
 export default function App() {
-  return <QueryClientProvider client={queryClient}><BrowserRouter><AuthProvider><AppRoutes /></AuthProvider></BrowserRouter></QueryClientProvider>;
+  return <QueryClientProvider client={queryClient}><BrowserRouter><AuthProvider><LivePricesProvider><AppRoutes /></LivePricesProvider></AuthProvider></BrowserRouter></QueryClientProvider>;
 }

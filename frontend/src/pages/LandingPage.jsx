@@ -1,12 +1,15 @@
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { ArrowDownRight, ArrowRight, ArrowUpRight, BarChart3, ChevronRight, CircleHelp, Compass, GraduationCap, LockKeyhole, ShieldCheck, Sparkles, TrendingUp, WalletCards } from "lucide-react";
-import { useNavigate } from "react-router-dom";
-import api from "../api/client";
+import { Link, useNavigate } from "react-router-dom";
+import { getCandles, getQuote } from "../api/market";
+import { getPredictionStats } from "../api/predictions";
+import { queryKeys } from "../api/queryKeys";
 import { useAuth } from "../auth/useAuth";
 import { AreaSparkline, CandleChart } from "../components/charts";
-import { Badge, Button, ExperimentalBadge, GlassCard, PaperModeBadge, TimeframePills } from "../components/ui";
+import { Badge, Button, EmptyState, ErrorState, ExperimentalBadge, GlassCard, PaperModeBadge, Skeleton, TimeframePills } from "../components/ui";
 import { generateSampleCandles, SAMPLE_STOCKS } from "../lib/sampleData";
+import { useMarketStatus } from "../hooks/useMarketStatus";
 
 const sampleRanges = {
   "1D": { count: 75, intervalMinutes: 5 },
@@ -28,7 +31,7 @@ function formatIndex(value) {
 
 function MarketStatusPill() {
   const { user } = useAuth();
-  const query = useQuery({ queryKey: ["market-status"], queryFn: async () => (await api.get("/market/status")).data, enabled: Boolean(user), staleTime: 30_000, refetchInterval: 60_000 });
+  const query = useMarketStatus(Boolean(user));
   if (!user) return <Badge kind="neutral"><span className="h-1.5 w-1.5 rounded-full bg-slate-400" />Sample data</Badge>;
   if (query.isLoading) return <Badge kind="neutral">Checking market status</Badge>;
   if (query.isError) return <Badge kind="neutral"><CircleHelp size={13} />Market status unavailable</Badge>;
@@ -70,8 +73,8 @@ function Hero() {
 
 function MarketCard({ stock }) {
   const { user } = useAuth();
-  const quote = useQuery({ queryKey: ["market-quote", stock.symbol], queryFn: async () => (await api.get(`/market/quote/${stock.symbol}`)).data, enabled: Boolean(user), staleTime: 10_000, refetchInterval: 20_000 });
-  const candlesQuery = useQuery({ queryKey: ["market-candles", stock.symbol], queryFn: async () => (await api.get(`/market/candles/${stock.symbol}`, { params: { interval: "5m", limit: 48 } })).data, enabled: Boolean(user), staleTime: 30_000 });
+  const quote = useQuery({ queryKey: queryKeys.quote(stock.symbol), queryFn: () => getQuote(stock.symbol), enabled: Boolean(user), staleTime: 10_000, refetchInterval: 20_000 });
+  const candlesQuery = useQuery({ queryKey: queryKeys.candles(stock.symbol, "5m", 48), queryFn: () => getCandles(stock.symbol, "5m", 48), enabled: Boolean(user), staleTime: 30_000 });
   const sampleCandles = useMemo(() => generateSampleCandles({ count: 48, seed: stock.seed, startPrice: stock.startPrice, intervalMinutes: 5 }), [stock.seed, stock.startPrice]);
   const realCandles = Array.isArray(candlesQuery.data) ? candlesQuery.data : [];
   const useRealSeries = Boolean(user && realCandles.length > 1);
@@ -82,8 +85,11 @@ function MarketCard({ stock }) {
   const lineColor = useRealSeries && realCandles.at(-1)?.close < realCandles[0]?.close ? "#ef4444" : "#10b981";
   return <GlassCard hover className="market-card flex h-full flex-col p-5 sm:p-6">
     <div className="flex items-start justify-between gap-3"><div><p className="text-sm font-semibold text-slate-900">{stock.symbol}</p><p className="mt-1 line-clamp-1 text-xs text-slate-500">{stock.name}</p></div><Badge kind="neutral">{dataLabel}</Badge></div>
-    <div className="mt-5 flex items-end justify-between gap-2"><p className="text-xl font-semibold tracking-tight text-slate-900">{user && !hasQuote ? "—" : formatRupees(price)}</p>{quote.data?.market_open === false && user && <span className="pb-1 text-[10px] text-slate-400">Last available quote</span>}</div>
-    <div className="mt-auto pt-3"><AreaSparkline data={sparkline} color={lineColor} height={70} /></div>
+    <div className="mt-5 flex items-end justify-between gap-2">{user && quote.isLoading ? <Skeleton className="h-7 w-28" /> : <p className="text-xl font-semibold tracking-tight text-slate-900">{user && !hasQuote ? "—" : formatRupees(price)}</p>}{quote.data?.market_open === false && user && <span className="pb-1 text-[10px] text-slate-400">Last available quote</span>}</div>
+    {user && quote.isError && <ErrorState title="Quote unavailable" description="The market quote could not be loaded." className="!px-2 !py-3" />}
+    <div className="mt-auto pt-3">{user && candlesQuery.isLoading ? <Skeleton className="h-[70px] w-full" /> : <AreaSparkline data={sparkline} color={lineColor} height={70} />}</div>
+    {user && candlesQuery.isError && <ErrorState title="Candles unavailable" description="Showing a clearly labeled sample trend instead." className="!px-2 !py-3" />}
+    {user && candlesQuery.isSuccess && !useRealSeries && <EmptyState title="No recent candles" description="The sparkline is sample data until market candles are available." className="!px-2 !py-3" />}
     <div className="mt-2 flex items-center justify-between text-[11px] text-slate-400"><span>{useRealSeries ? "Recent 5-minute candles" : "Sample trend"}</span><span aria-hidden="true">↗</span></div>
   </GlassCard>;
 }
@@ -111,13 +117,14 @@ function HowItWorks() {
 
 function Scorecard() {
   const { user } = useAuth();
-  const stats = useQuery({ queryKey: ["prediction-stats"], queryFn: async () => (await api.get("/predictions/stats")).data, enabled: Boolean(user), staleTime: 60_000 });
+  const stats = useQuery({ queryKey: queryKeys.predictionStats, queryFn: getPredictionStats, enabled: Boolean(user), staleTime: 60_000 });
   return <GlassCard className="h-full p-5 sm:p-6">
     <div className="flex items-center justify-between gap-2"><div><p className="text-xs font-semibold uppercase tracking-[0.13em] text-slate-400">Personal scorecard</p><h3 className="mt-1 text-lg font-semibold text-slate-900">Model estimate vs baseline</h3></div><ExperimentalBadge /></div>
     {!user && <p className="mt-5 rounded-xl bg-slate-50/80 px-4 py-3 text-sm leading-6 text-slate-600">Model accuracy vs baseline: shown after you log in.</p>}
-    {user && stats.isLoading && <div className="mt-5 space-y-3"><div className="skeleton h-12 rounded-xl" /><div className="skeleton h-12 rounded-xl" /><div className="skeleton h-12 rounded-xl" /></div>}
-    {user && stats.isError && <p className="mt-5 rounded-xl bg-slate-50/80 px-4 py-3 text-sm leading-6 text-slate-600">Your prediction statistics are temporarily unavailable.</p>}
-    {user && stats.data && <div className="mt-4 divide-y divide-slate-200/70">{[5, 10, 30].map((horizon) => {
+    {user && stats.isLoading && <div className="mt-5 space-y-3"><Skeleton className="h-12 w-full" /><Skeleton className="h-12 w-full" /><Skeleton className="h-12 w-full" /></div>}
+    {user && stats.isError && <ErrorState title="Scorecard unavailable" description="Your prediction statistics could not be loaded." className="!px-2 !py-5" />}
+    {user && stats.data && [5, 10, 30].every((horizon) => Number(stats.data[String(horizon)]?.count || 0) === 0) && <EmptyState title="No resolved predictions yet" description="Place an experimental prediction to start building your personal scorecard." action={<Link to="/prediction" className="text-sm font-semibold text-emerald-700 hover:text-emerald-800">Try a prediction</Link>} className="!px-2 !py-5" />}
+    {user && stats.data && [5, 10, 30].some((horizon) => Number(stats.data[String(horizon)]?.count || 0) > 0) && <div className="mt-4 divide-y divide-slate-200/70">{[5, 10, 30].map((horizon) => {
       const item = stats.data[String(horizon)];
       const count = Number(item?.count || 0);
       return <div key={horizon} className="flex items-center justify-between gap-3 py-3"><div><p className="text-sm font-semibold text-slate-800">{horizon} min horizon</p><p className="mt-0.5 text-[11px] text-slate-500">{count ? `${count} resolved predictions` : "No resolved predictions yet"}</p></div>{count ? <div className="text-right"><p className="text-sm font-semibold text-slate-800">{(Number(item.accuracy) * 100).toFixed(1)}% <span className="text-[10px] font-normal text-slate-400">vs</span> {(Number(item.baseline_accuracy) * 100).toFixed(1)}%</p><p className={`mt-0.5 text-[10px] ${item.beats_baseline ? "text-emerald-700" : "text-slate-400"}`}>{item.beats_baseline ? "Above baseline in this sample" : "Not above baseline in this sample"}</p></div> : <span className="text-xs text-slate-400">—</span>}</div>;

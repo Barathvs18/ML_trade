@@ -1,0 +1,14 @@
+export const queryKeys = {
+  marketStatus: ["market", "status"],
+  stocks: (query = "") => ["market", "stocks", query],
+  quote: (symbol) => ["market", "quote", symbol],
+  candles: (symbol, interval, limit) => ["market", "candles", symbol, interval, limit],
+  dashboardSummary: ["dashboard", "summary"],
+  equityCurve: (range) => ["dashboard", "equity-curve", range],
+  predictions: (filters = {}) => ["predictions", filters],
+  predictionStats: ["predictions", "stats"],
+  positions: ["paper", "positions"],
+  trades: (limit) => ["paper", "trades", limit],
+  paperPnl: ["paper", "pnl"],
+  wallet: ["paper", "wallet"],
+};

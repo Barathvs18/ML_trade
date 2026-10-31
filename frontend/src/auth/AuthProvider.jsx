@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import api, { googleLoginUrl, isMockMode } from "../api/client";
+import { googleLoginUrl, isMockMode } from "../api/client";
+import { getCurrentUser, logout as logoutRequest } from "../api/auth";
 import AuthContext from "./AuthContext";
 
 export function AuthProvider({ children }) {
@@ -8,8 +9,8 @@ export function AuthProvider({ children }) {
 
   useEffect(() => {
     let active = true;
-    api.get("/auth/me")
-      .then(({ data }) => { if (active) setUser(data); })
+    getCurrentUser()
+      .then((data) => { if (active) setUser(data); })
       .catch(() => { if (active) setUser(null); })
       .finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
@@ -17,7 +18,7 @@ export function AuthProvider({ children }) {
 
   const logout = useCallback(async () => {
     try {
-      await api.post("/auth/logout");
+      await logoutRequest();
     } finally {
       setUser(null);
     }

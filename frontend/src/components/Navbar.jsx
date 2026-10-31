@@ -2,7 +2,9 @@ import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { ArrowUpRight, ChevronDown, LogOut, Menu, Search, TrendingUp, X } from "lucide-react";
-import api, { isMockMode } from "../api/client";
+import { isMockMode } from "../api/client";
+import { getStocks } from "../api/market";
+import { queryKeys } from "../api/queryKeys";
 import { useAuth } from "../auth/useAuth";
 import { Badge, Button, PaperModeBadge, Skeleton } from "./ui";
 
@@ -20,8 +22,8 @@ export default function Navbar() {
   const [profileOpen, setProfileOpen] = useState(false);
   const [search, setSearch] = useState("");
   const stockQuery = useQuery({
-    queryKey: ["market-stocks", search],
-    queryFn: async () => (await api.get("/market/stocks", { params: { q: search.trim() } })).data,
+    queryKey: queryKeys.stocks(search.trim()),
+    queryFn: () => getStocks(search.trim()),
     enabled: Boolean(user && search.trim()),
     staleTime: 60_000,
   });

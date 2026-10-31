@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef } from "react";
+import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef } from "react";
 import { ColorType, createChart, TickMarkType } from "lightweight-charts";
 
 function formatIstTick(time, tickMarkType) {
@@ -28,7 +28,7 @@ function normalizeCandle(candle) {
   };
 }
 
-export default function CandleChart({ candles = [], volume, markers = [], height = 360, className = "" }) {
+const CandleChart = forwardRef(function CandleChart({ candles = [], volume, markers = [], height = 360, className = "" }, ref) {
   const hostRef = useRef(null);
   const chartRef = useRef(null);
   const candleSeriesRef = useRef(null);
@@ -36,6 +36,32 @@ export default function CandleChart({ candles = [], volume, markers = [], height
   const previousDataRef = useRef([]);
   const previousVolumeRef = useRef([]);
   const normalized = useMemo(() => candles.map(normalizeCandle).filter((item) => Number.isFinite(item.time) && Number.isFinite(item.close)), [candles]);
+
+  useImperativeHandle(ref, () => ({
+    updateCandle(rawCandle) {
+      const candle = normalizeCandle(rawCandle);
+      if (!Number.isFinite(candle.time) || !Number.isFinite(candle.close) || !candleSeriesRef.current || !volumeSeriesRef.current) return;
+      const rows = previousDataRef.current;
+      if (rows.length && candle.time < rows.at(-1).time) return;
+      if (rows.at(-1)?.time === candle.time) rows[rows.length - 1] = candle;
+      else rows.push(candle);
+      if (rows.length > 200) rows.shift();
+      const barVolume = { time: candle.time, value: candle.volume, color: candle.close >= candle.open ? "rgba(16,185,129,0.32)" : "rgba(239,68,68,0.3)" };
+      candleSeriesRef.current.update(candle);
+      volumeSeriesRef.current.update(barVolume);
+      const volumeRows = previousVolumeRef.current;
+      if (volumeRows.at(-1)?.time === candle.time) volumeRows[volumeRows.length - 1] = barVolume;
+      else volumeRows.push(barVolume);
+      if (volumeRows.length > 200) volumeRows.shift();
+    },
+    updateLastPrice(tick) {
+      const last = previousDataRef.current.at(-1);
+      const price = Number(tick.ltp);
+      if (!last || !Number.isFinite(price)) return;
+      this.updateCandle({ ...last, high: Math.max(last.high, price), low: Math.min(last.low, price), close: price, volume: Number(tick.volume ?? last.volume) });
+    },
+    setMarkers(nextMarkers) { candleSeriesRef.current?.setMarkers(nextMarkers); },
+  }), []);
 
   useEffect(() => {
     if (!hostRef.current) return undefined;
@@ -109,4 +135,6 @@ export default function CandleChart({ candles = [], volume, markers = [], height
   }, [normalized, volume, markers]);
 
   return <div ref={hostRef} className={`min-w-0 w-full ${className}`} style={{ height }} role="img" aria-label="Candlestick chart with volume" />;
-}
+});
+
+export default CandleChart;
