@@ -104,17 +104,16 @@ export default function PaperTradingPage() {
       <div className="rounded-2xl border border-white/75 bg-white/55 p-3.5 shadow-sm sm:p-4"><p className="text-[11px] font-medium text-slate-600">Win rate / trades</p>{pnlQuery.isLoading || dashboardQuery.isLoading ? <div className="skeleton mt-2 h-6 w-24" /> : <p className="mt-1 text-lg font-semibold tracking-tight text-slate-900">{formatPercent(Number(pnl?.win_rate ?? 0), 1)} · {dashboardQuery.data?.trade_count ?? trades.length}</p>}</div>
     </section>
 
-    <section className="mt-5 grid grid-cols-1 items-start gap-4 xl:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]" aria-label="Paper order entry and open positions">
+    <section className="mt-5 max-w-3xl" aria-label="Paper order entry">
       <OrderTicket stocks={stocks} symbol={symbol} symbolValid={stockIsValid} onSymbolChange={setSymbol} initialPrice={quoteQuery.data?.ltp} marketOpen={isOpen && !linkedProblem} marketReason={marketOpenReason} submitting={orderMutation.isPending} error={orderMutation.error ? mapPaperOrderError(orderMutation.error) : ""} onSubmit={(order) => orderMutation.mutateAsync(order)} linkedPrediction={linkedPrediction} />
-      <OpenPositions positions={positions} loading={positionsQuery.isLoading} error={positionsQuery.isError} onRetry={() => positionsQuery.refetch()} onClose={(closedSymbol) => closeMutation.mutateAsync(closedSymbol)} onPaperExit={() => refreshPaper(client)} closingSymbol={closeMutation.isPending ? closeMutation.variables : ""} />
     </section>
 
-    <section className="mt-4 grid grid-cols-1 items-start gap-4 xl:grid-cols-[minmax(0,1.2fr)_minmax(330px,0.8fr)]" aria-label="Paper trading history and performance">
-      <TradeHistory trades={trades} loading={tradesQuery.isLoading} error={tradesQuery.isError} onRetry={() => tradesQuery.refetch()} />
+    <div className="mt-4"><OpenPositions positions={positions} loading={positionsQuery.isLoading} error={positionsQuery.isError} onRetry={() => positionsQuery.refetch()} onClose={(closedSymbol) => closeMutation.mutateAsync(closedSymbol)} onPaperExit={() => refreshPaper(client)} closingSymbol={closeMutation.isPending ? closeMutation.variables : ""} /></div>
+    <div className="mt-4"><TradeHistory trades={trades} loading={tradesQuery.isLoading} error={tradesQuery.isError} onRetry={() => tradesQuery.refetch()} /></div>
+    <section className="mt-4 grid grid-cols-1 items-start gap-4 xl:grid-cols-2" aria-label="Paper performance and equity history">
       <PerformanceCard pnl={pnl} trades={trades} loading={pnlQuery.isLoading || tradesQuery.isLoading} error={pnlQuery.isError || tradesQuery.isError} onRetry={() => { pnlQuery.refetch(); tradesQuery.refetch(); }} />
+      <EquityCurveCard />
     </section>
-
-    <div className="mt-4"><EquityCurveCard /></div>
     <div className="mt-4"><ResetAccountCard onReset={() => resetMutation.mutateAsync()} resetting={resetMutation.isPending} error={resetMutation.error ? mapPaperOrderError(resetMutation.error) : ""} /></div>
     {notice && <div className="fixed bottom-4 right-4 z-50"><Toast kind={notice.kind} title={notice.title} message={notice.message} onClose={() => setNotice(null)} /></div>}
     <p className="mt-8 text-center text-xs text-slate-600">Educational only, not financial advice. All trading is simulated with virtual money.</p>

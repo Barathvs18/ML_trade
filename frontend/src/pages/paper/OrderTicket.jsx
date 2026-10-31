@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { useLivePrices } from "../../hooks/useLivePrices";
 import { Badge, Button, GlassCard, Modal } from "../../components/ui";
@@ -14,6 +14,7 @@ export default function OrderTicket({ stocks, symbol, symbolValid, onSymbolChang
   const [stopLoss, setStopLoss] = useState("");
   const [target, setTarget] = useState("");
   const [confirmOpen, setConfirmOpen] = useState(false);
+  useEffect(() => { setStopLoss(""); setTarget(""); }, [symbol]);
   const { prices, status } = useLivePrices([symbol], { includePrices: true, throttleMs: 1000 });
   const ltp = Number(prices[symbol]?.ltp ?? initialPrice);
   const estimate = estimatePaperOrder({ side, quantity, ltp });
