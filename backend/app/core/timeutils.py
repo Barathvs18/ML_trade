@@ -29,6 +29,11 @@ def to_ist(value: datetime) -> datetime:
     return value.astimezone(IST) if value.tzinfo else value.replace(tzinfo=UTC).astimezone(IST)
 
 def is_market_open(value: datetime | None = None) -> bool:
+    from app.config import settings
+    if settings.smoke_test_mode:
+        if settings.environment.lower() == "production":
+            return False
+        return True
     current = to_ist(value) if value else now_ist()
     return is_trading_day(current) and time(9,15) <= current.time() < time(15,30)
 

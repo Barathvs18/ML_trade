@@ -13,6 +13,8 @@ def load_instruments():
 
 async def feed_loop(stop: asyncio.Event, symbols: list[str] | None=None):
     if settings.feed_mode.lower()=="replay":
+        from app.main import health_state
+        health_state["feed_connected"]=True
         await run_replay(symbols or [x["symbol"] for x in load_instruments()],stop);return
     instruments=[x for x in load_instruments() if symbols is None or x["symbol"] in symbols]
     delay=1
@@ -20,6 +22,8 @@ async def feed_loop(stop: asyncio.Event, symbols: list[str] | None=None):
         try:
             from app.modules.market.upstox_client import connect_feed
             async for tick in connect_feed(instruments):
+                from app.main import health_state
+                health_state["feed_connected"]=True
                 when=datetime.fromtimestamp(tick["ts"]/1000,tz=timezone.utc) if tick["ts"] else datetime.now(timezone.utc)
                 row=price_cache.update(tick["symbol"],tick["ltp"],tick["volume"],when)
                 await candle_builder.on_tick(tick["symbol"],row["ltp"],row["volume"],row["ts"])
@@ -27,6 +31,8 @@ async def feed_loop(stop: asyncio.Event, symbols: list[str] | None=None):
             delay=1
         except asyncio.CancelledError: raise
         except Exception: logger.exception("Upstox feed disconnected; retrying")
+        from app.main import health_state
+        health_state["feed_connected"]=False
         try: await asyncio.wait_for(stop.wait(),timeout=delay)
         except asyncio.TimeoutError: pass
         delay=min(delay*2,60)

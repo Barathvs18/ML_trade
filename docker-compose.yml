@@ -2,6 +2,10 @@ services:
   backend:
     build: ./backend
     env_file: .env
+    environment:
+      MONGO_URI: ${MONGO_URI:-mongodb://mongo:27017/?replicaSet=rs0}
+      ENVIRONMENT: ${ENVIRONMENT:-development}
+      SMOKE_TEST_MODE: ${SMOKE_TEST_MODE:-false}
     ports:
       - "8000:8000"
     depends_on:
@@ -9,13 +13,14 @@ services:
         condition: service_healthy
   mongo:
     image: mongo:7
+    command: ["mongod", "--replSet", "rs0", "--bind_ip_all"]
     restart: unless-stopped
     ports:
       - "27017:27017"
     volumes:
       - mongo_data:/data/db
     healthcheck:
-      test: ["CMD", "mongosh", "--quiet", "--eval", "db.runCommand({ ping: 1 }).ok"]
+      test: ["CMD", "mongosh", "--quiet", "--eval", "try { rs.status().ok } catch (e) { rs.initiate({_id:'rs0',members:[{_id:0,host:'mongo:27017'}]}).ok }"]
       interval: 5s
       timeout: 3s
       retries: 10

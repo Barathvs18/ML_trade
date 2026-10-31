@@ -26,6 +26,8 @@ class Settings(BaseSettings):
     cookie_secure: bool = False
     cookie_samesite: str = "lax"
     slippage_bps: float = 2.0
+    environment: str = "production"
+    smoke_test_mode: bool = False
 
     @property
     def admin_email_set(self) -> set[str]:

@@ -4,6 +4,7 @@
 __pycache__/
 *.pyc
 .venv/
+backend/.verify-venv/
 venv/
 node_modules/
 dist/

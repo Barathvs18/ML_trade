@@ -1,0 +1,6 @@
+Smoke test not executed.
+
+Attempted: docker compose up --build -d
+Result: Docker CLI could not connect to the Docker Desktop Linux engine: open //./pipe/dockerDesktopLinuxEngine: The system cannot find the file specified.
+
+The repeatable script is backend/scripts/smoke_test.py. Start Docker Desktop and run the instructions in the root README to execute the endpoint checks.

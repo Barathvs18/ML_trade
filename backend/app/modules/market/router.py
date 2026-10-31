@@ -1,6 +1,7 @@
 from fastapi import APIRouter, HTTPException, Query
 from app.modules.market import service
 from app.modules.market.price_cache import price_cache
+from app.core.serialization import api_value
 router=APIRouter(prefix="/market",tags=["market"])
 @router.get("/stocks")
 async def stocks(q:str=""):
@@ -13,6 +14,6 @@ async def quote(symbol:str):
 async def get_candles(symbol:str,interval:str="5m",limit:int=Query(100,ge=1,le=200)):
     if not service.stock(symbol): raise HTTPException(404,"Unknown symbol")
     if interval not in {"5m","10m","30m","1d"}: raise HTTPException(422,"Invalid interval")
-    return await service.candles(symbol.upper(),interval,limit)
+    return api_value(await service.candles(symbol.upper(),interval,limit))
 @router.get("/status")
 async def status(): return service.status()

@@ -15,8 +15,10 @@ health_state = {"upstox_token_ok": False, "feed_connected": False, "ml_reachable
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    import asyncio
     from app.scheduler import build_scheduler, guarded_backfill, backfill_state
-    backfill_task = None
+    background_tasks=[]
+    feed_stop=asyncio.Event()
     scheduler = build_scheduler()
     try:
         await connect_db()
@@ -29,13 +31,17 @@ async def lifespan(app: FastAPI):
         app.state.db_ok = False
         logger.exception("Database connection failed")
     scheduler.start()
-    backfill_task = __import__("asyncio").create_task(guarded_backfill(),name="market-candle-backfill")
+    background_tasks.append(asyncio.create_task(guarded_backfill(),name="market-candle-backfill"))
+    from app.modules.market.feed import feed_loop
+    background_tasks.append(asyncio.create_task(feed_loop(feed_stop),name="market-feed"))
     yield
     scheduler.shutdown(wait=False)
-    if backfill_task and not backfill_task.done():
-        backfill_task.cancel()
-        try: await backfill_task
-        except __import__("asyncio").CancelledError: pass
+    feed_stop.set()
+    for task in background_tasks:
+        if not task.done():task.cancel()
+    for task in background_tasks:
+        try:await task
+        except asyncio.CancelledError:pass
     await close_db()
 
 
@@ -45,11 +51,13 @@ def create_app() -> FastAPI:
                        allow_methods=["*"], allow_headers=["*"])
     from app.modules.auth.router import router as auth_router
     from app.modules.market.router import router as market_router
+    from app.modules.market.admin_router import router as market_admin_router
     from app.modules.market.ws import router as ws_router
     from app.modules.predictions.router import router as predictions_router
     from app.modules.paper.router import router as paper_router
     from app.modules.dashboard.router import router as dashboard_router
     app.include_router(auth_router); app.include_router(market_router); app.include_router(ws_router)
+    app.include_router(market_admin_router)
     app.include_router(predictions_router); app.include_router(paper_router); app.include_router(dashboard_router)
 
     @app.middleware("http")

@@ -5,6 +5,7 @@ from app.db import get_db
 from app.modules.market.service import stock
 from app.modules.paper.engine import order, close_position
 from app.modules.paper.service import wallet,positions
+from app.core.serialization import api_value
 router=APIRouter(prefix="/paper",tags=["paper"])
 @router.post("/orders")
 async def place(body:dict,user=Depends(get_current_user)):
@@ -12,10 +13,10 @@ async def place(body:dict,user=Depends(get_current_user)):
     if not stock(symbol):raise AppError(422,"invalid_symbol","Invalid stock")
     return await order(user["user_id"],symbol,body.get("side"),int(body.get("qty",0)),body.get("stop_loss"),body.get("target"),body.get("prediction_id"))
 @router.get("/wallet")
-async def get_wallet(user=Depends(get_current_user)):return await wallet(user["user_id"])
+async def get_wallet(user=Depends(get_current_user)):return api_value(await wallet(user["user_id"]))
 @router.get("/positions")
 async def get_positions(user=Depends(get_current_user)):
-    rows=await positions(user["user_id"]);return {"positions":rows,"unrealized_total":sum(p["unrealized_pnl"] for p in rows)}
+    rows=await positions(user["user_id"]);return api_value({"positions":rows,"unrealized_total":sum(p["unrealized_pnl"] for p in rows)})
 @router.post("/positions/{symbol}/close")
 async def close(symbol:str,user=Depends(get_current_user)):
     p=await get_db().positions.find_one({"user_id":user["user_id"],"symbol":symbol.upper()})
@@ -23,7 +24,15 @@ async def close(symbol:str,user=Depends(get_current_user)):
     return await close_position(user["user_id"],symbol.upper(),"manual",force=False)
 @router.get("/trades")
 async def trades(limit:int=Query(50,ge=1,le=200),user=Depends(get_current_user)):
-    return [r async for r in get_db().trades.find({"user_id":user["user_id"]}).sort("ts",-1).limit(limit)]
+    return api_value([r async for r in get_db().trades.find({"user_id":user["user_id"]}).sort("ts",-1).limit(limit)])
+@router.get("/pnl")
+async def pnl(user=Depends(get_current_user)):
+    from app.modules.paper.service import positions as user_positions
+    db=get_db();wallet_row=await wallet(user["user_id"]);open_positions=await user_positions(user["user_id"])
+    realized=[]
+    async for trade in db.trades.find({"user_id":user["user_id"],"realized_pnl":{"$ne":0}}):realized.append(trade["realized_pnl"])
+    unrealized=sum(position["unrealized_pnl"] for position in open_positions)
+    return {"realized":wallet_row.get("realized_pnl",0),"unrealized":unrealized,"total":wallet_row.get("realized_pnl",0)+unrealized,"win_rate":sum(value>0 for value in realized)/len(realized) if realized else 0,"best_trade":max(realized) if realized else None,"worst_trade":min(realized) if realized else None}
 @router.post("/reset")
 async def reset(user=Depends(get_current_user)):
     from datetime import datetime,timezone
