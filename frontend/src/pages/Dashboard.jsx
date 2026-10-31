@@ -13,7 +13,7 @@ import PositionsSummary from "./dashboard/PositionsSummary";
 import RecentActivity from "./dashboard/RecentActivity";
 import ScorecardCard from "./dashboard/ScorecardCard";
 import WatchlistCard from "./dashboard/WatchlistCard";
-import { todayPnl } from "./dashboard/utils";
+import { preferredTodayPnl, todayPnl } from "./dashboard/utils";
 
 export default function DashboardPage() {
   const { user } = useAuth();
@@ -23,9 +23,11 @@ export default function DashboardPage() {
   const tradesQuery = useQuery({ queryKey: queryKeys.trades(200), queryFn: () => getTrades(200), staleTime: 10_000, retry: 1 });
   const positionsQuery = useQuery({ queryKey: queryKeys.positions, queryFn: getPositions, staleTime: 10_000, refetchInterval: 30_000, retry: 1 });
   const summary = summaryQuery.data;
-  const todayUnavailable = tradesQuery.isError || positionsQuery.isError || (tradesQuery.data?.length ?? 0) >= 200;
-  const todayLoading = tradesQuery.isLoading || positionsQuery.isLoading;
-  const pnlToday = todayUnavailable ? null : todayPnl(tradesQuery.data, positionsQuery.data?.positions);
+  const hasSummaryTodayPnl = typeof summary?.today_pnl === "number" && Number.isFinite(summary.today_pnl);
+  const todayUnavailable = !hasSummaryTodayPnl && (tradesQuery.isError || positionsQuery.isError || (tradesQuery.data?.length ?? 0) >= 200);
+  const todayLoading = !hasSummaryTodayPnl && (tradesQuery.isLoading || positionsQuery.isLoading);
+  const derivedTodayPnl = todayUnavailable ? null : todayPnl(tradesQuery.data, positionsQuery.data?.positions);
+  const pnlToday = preferredTodayPnl(summary, derivedTodayPnl);
 
   const selectSymbol = (symbol) => {
     setSelectedSymbol(symbol);

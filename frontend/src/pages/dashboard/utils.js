@@ -31,6 +31,12 @@ export function todayPnl(trades = [], positions = [], now = new Date()) {
   return realized + unrealized;
 }
 
+export function preferredTodayPnl(summary, fallback) {
+  return typeof summary?.today_pnl === "number" && Number.isFinite(summary.today_pnl)
+    ? summary.today_pnl
+    : fallback;
+}
+
 export function candlesForChart(rows = []) {
   return rows.map((row) => ({
     time: row.time ?? row.t ?? row.start,
