@@ -5,7 +5,7 @@ import { getDashboardSummary } from "../api/dashboard";
 import { getPositions, getTrades } from "../api/paper";
 import { queryKeys } from "../api/queryKeys";
 import { useAuth } from "../auth/useAuth";
-import { ErrorState, GlassCard, Skeleton } from "../components/ui";
+import { GlassCard, Skeleton } from "../components/ui";
 import DashboardSummary from "./dashboard/DashboardSummary";
 import EquityCurveCard from "./dashboard/EquityCurveCard";
 import MarketChartPanel from "./dashboard/MarketChartPanel";
@@ -33,9 +33,9 @@ export default function DashboardPage() {
   };
 
   return <main className="mx-auto min-h-[70vh] max-w-7xl px-5 pb-16 pt-8 sm:px-8 sm:pt-10">
-    <div className="mb-7 flex flex-wrap items-end justify-between gap-4"><div><p className="text-xs font-semibold uppercase tracking-[0.15em] text-emerald-700">Stockzo workspace</p><h1 className="mt-2 text-3xl font-semibold tracking-tight text-slate-900 sm:text-4xl">{user?.name ? `Welcome, ${user.name.split(" ")[0]}` : "Your dashboard"}</h1><p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">Explore market prices, review experimental predictions, and track your simulated paper portfolio.</p></div>{summaryQuery.isError && <GlassCard className="p-1"><ErrorState title="Dashboard data unavailable" description="We couldn't load your account summary." onRetry={() => summaryQuery.refetch()} className="!px-3 !py-3" /></GlassCard>}</div>
+    <div className="mb-7 flex flex-wrap items-end justify-between gap-4"><div><p className="text-xs font-semibold uppercase tracking-[0.15em] text-emerald-700">Stockzo workspace</p><h1 className="mt-2 text-3xl font-semibold tracking-tight text-slate-900 sm:text-4xl">{user?.name ? `Welcome, ${user.name.split(" ")[0]}` : "Your dashboard"}</h1><p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">Explore market prices, review experimental predictions, and track your simulated paper portfolio.</p></div></div>
 
-    <DashboardSummary summary={summary} todayValue={pnlToday} todayLoading={todayLoading} todayUnavailable={todayUnavailable} summaryLoading={summaryQuery.isLoading} summaryError={false} onRetry={() => summaryQuery.refetch()} />
+    <DashboardSummary summary={summary} todayValue={pnlToday} todayLoading={todayLoading} todayUnavailable={todayUnavailable} summaryLoading={summaryQuery.isLoading} summaryError={summaryQuery.isError} onRetry={() => summaryQuery.refetch()} />
 
     <section className="mt-5 grid grid-cols-1 items-start gap-4 lg:grid-cols-[minmax(0,1.8fr)_minmax(300px,1fr)]" aria-label="Market tools">
       <MarketChartPanel symbol={selectedSymbol} onSelectSymbol={selectSymbol} />

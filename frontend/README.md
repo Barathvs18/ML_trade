@@ -20,6 +20,7 @@ To run the UI without a backend, set `VITE_USE_MOCK=true` in `.env.local` and re
 ```powershell
 npm run lint
 npm run build
+npm run test -- --run
 npm run preview
 ```
 
@@ -29,10 +30,17 @@ npm run preview
 
 - `/` — Stockzo landing page. Synthetic chart data is labeled “Sample data”; when signed in, market quotes and prediction statistics are fetched from the backend.
 - `/login` — Google OAuth handoff.
-- `/dashboard`, `/prediction`, `/paper-trading` — protected routes with temporary “Coming in the next step” content.
+- `/dashboard` — protected market and paper-account overview with a chart, watchlist, experimental scorecard, equity curve, recent activity, and open-position summary.
+- `/prediction`, `/paper-trading` — protected placeholders for the next frontend steps.
 - `/privacy-policy`, `/terms-and-conditions`, `/contact` — informational placeholders.
 
 The frontend is educational only, not financial advice. All trading is simulated with virtual money.
+
+## Dashboard checks
+
+The dashboard uses the backend routes for market status, stocks, quotes, candles, prediction stats and history, paper positions/trades, and dashboard summary/equity snapshots. In `VITE_USE_MOCK=true` mode these calls use the in-memory mock API and one-second synthetic price feed, so the dashboard can be previewed without backend credentials. Mock data is labeled in the navbar.
+
+Run the component tests with `npm run test -- --run`. They cover the shared WebSocket hook's reconnect/cleanup, scorecard baseline labels, and dashboard loading, error, empty, and unavailable-summary states.
 
 ## Deploy to Vercel
 
