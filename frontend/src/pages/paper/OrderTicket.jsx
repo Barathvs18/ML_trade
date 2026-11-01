@@ -28,11 +28,11 @@ export default function OrderTicket({ stocks, symbol, symbolValid, onSymbolChang
     } catch { /* The order error remains visible on the ticket. */ }
   };
 
-  return <GlassCard className="p-5 sm:p-6">
+  return <GlassCard className="p-4 sm:p-5">
     <div className="flex flex-wrap items-start justify-between gap-3"><div><p className="text-xs font-semibold uppercase tracking-[0.13em] text-slate-500">Order ticket</p><h2 className="mt-1 text-lg font-semibold text-slate-900">Place a simulated order</h2></div><Badge kind="positive">Virtual money</Badge></div>
     {linkedPrediction && <div className="mt-4 rounded-xl border border-indigo-100 bg-indigo-50/65 p-3 text-xs leading-5 text-indigo-950"><p className="font-semibold">Linked model estimate</p><p>{linkedPrediction.symbol} · {linkedPrediction.horizon} min · {linkedPrediction.direction} · {Math.round(linkedPrediction.probability * 100)}% top probability · {linkedPrediction.status}</p><Link to={`/prediction?prediction_id=${encodeURIComponent(linkedPrediction._id)}`} className="mt-1 inline-flex font-semibold text-indigo-800 underline">View estimate</Link></div>}
     <label className="mt-4 block text-xs font-semibold text-slate-700">Nifty 50 stock
-      <input list="paper-stock-list" value={symbol} onChange={(event) => onSymbolChange(event.target.value.toUpperCase())} aria-label="Search Nifty 50 stocks for order" placeholder="Search symbol" className="mt-1.5 block h-11 w-full rounded-xl border border-slate-200 bg-white/80 px-3 text-sm text-slate-900 outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100" />
+      <input list="paper-stock-list" value={symbol} onChange={(event) => onSymbolChange(event.target.value.toUpperCase())} aria-label="Search Nifty 50 stocks for order" placeholder="Search symbol" className="mt-1.5 block h-10 w-full rounded-xl border border-slate-200 bg-white/80 px-3 text-sm text-slate-900 outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100" />
       <datalist id="paper-stock-list">{stocks.map((stock) => <option key={stock.symbol} value={stock.symbol}>{stock.name}</option>)}</datalist>
     </label>
     {!symbolValid && <p className="mt-2 text-xs text-amber-900">Choose a symbol from the Nifty 50 list.</p>}

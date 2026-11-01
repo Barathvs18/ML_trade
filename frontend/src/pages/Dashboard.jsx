@@ -34,7 +34,7 @@ export default function DashboardPage() {
     setSearchParams((previous) => { const next = new URLSearchParams(previous); next.set("symbol", symbol); return next; }, { replace: true });
   };
 
-  return <main className="mx-auto min-h-[70vh] max-w-7xl px-5 pb-16 pt-8 sm:px-8 sm:pt-10">
+  return <main className="page-wrapper">
     <div className="mb-7 flex flex-wrap items-end justify-between gap-4"><div><p className="text-xs font-semibold uppercase tracking-[0.15em] text-emerald-700">Stockzo workspace</p><h1 className="mt-2 text-3xl font-semibold tracking-tight text-slate-900 sm:text-4xl">{user?.name ? `Welcome, ${user.name.split(" ")[0]}` : "Your dashboard"}</h1><p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">Explore market prices, review experimental predictions, and track your simulated paper portfolio.</p></div></div>
 
     <DashboardSummary summary={summary} todayValue={pnlToday} todayLoading={todayLoading} todayUnavailable={todayUnavailable} summaryLoading={summaryQuery.isLoading} summaryError={summaryQuery.isError} onRetry={() => summaryQuery.refetch()} />

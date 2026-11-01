@@ -19,13 +19,13 @@ export function mapPredictionError(error, now = Date.now()) {
 }
 
 export function formatCountdown(resolveAt, now = Date.now()) {
-  const remainingSeconds = Math.max(0, Math.ceil((new Date(resolveAt).getTime() - now) / 1000));
+  const resolveTime = new Date(resolveAt).getTime();
+  if (!Number.isFinite(resolveTime)) return "--:--:--";
+  const remainingSeconds = Math.max(0, Math.ceil((resolveTime - now) / 1000));
   const hours = Math.floor(remainingSeconds / 3600);
   const minutes = Math.floor((remainingSeconds % 3600) / 60);
   const seconds = remainingSeconds % 60;
-  return hours > 0
-    ? `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`
-    : `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
+  return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
 }
 
 /** Actual outcome fields are withheld until the server marks the prediction resolved. */

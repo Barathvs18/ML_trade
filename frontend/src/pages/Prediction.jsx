@@ -73,12 +73,24 @@ export default function PredictionPage() {
   const market = useMarketStatus();
   const [symbol, setSymbol] = useState("RELIANCE");
   const [symbolSearch, setSymbolSearch] = useState("");
+  const [stockPickerOpen, setStockPickerOpen] = useState(false);
   const [horizon, setHorizon] = useState(5);
   const [latestId, setLatestId] = useState(linkedPredictionId);
   const [historySelection, setHistorySelection] = useState(null);
   const [tradeReceipt, setTradeReceipt] = useState(null);
+  const stockPickerRef = useRef(null);
   const stockQuery = useQuery({ queryKey: queryKeys.stocks(""), queryFn: () => getStocks(""), staleTime: 5 * 60_000, retry: 1 });
+  useEffect(() => {
+    const close = (event) => { if (stockPickerRef.current && !stockPickerRef.current.contains(event.target)) setStockPickerOpen(false); };
+    document.addEventListener("mousedown", close);
+    return () => document.removeEventListener("mousedown", close);
+  }, []);
   const stocks = useMemo(() => Array.isArray(stockQuery.data) ? stockQuery.data : [], [stockQuery.data]);
+  const filteredStocks = useMemo(() => {
+    const query = symbolSearch.trim().toLowerCase();
+    if (!query) return stocks.slice(0, 12);
+    return stocks.filter((stockRow) => `${stockRow.symbol} ${stockRow.name || ""}`.toLowerCase().includes(query)).slice(0, 12);
+  }, [stocks, symbolSearch]);
   const validSymbols = useMemo(() => new Set(stocks.map((stockRow) => stockRow.symbol)), [stocks]);
   const requestedSymbol = symbolSearch.trim().toUpperCase() || symbol;
   const symbolValid = validSymbols.has(requestedSymbol);
@@ -134,7 +146,7 @@ export default function PredictionPage() {
   const allowTrade = Boolean(latestId && !historySelection && prediction?.status === "pending" && Date.now() < new Date(prediction.resolve_at).getTime());
   const mockPrediction = isMockMode && prediction?.mock_accelerated;
 
-  return <main className="mx-auto min-h-[70vh] max-w-7xl px-5 pb-16 pt-8 sm:px-8 sm:pt-10">
+  return <main className="page-wrapper">
     <div className="mb-6 flex flex-wrap items-end justify-between gap-4"><div><p className="text-xs font-semibold uppercase tracking-[0.15em] text-emerald-700">Experimental lab</p><h1 className="mt-2 text-3xl font-semibold tracking-tight text-slate-900 sm:text-4xl">Model predictions</h1><p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">Request a model estimate, then compare it with the resolved market direction. Results are experimental and may be wrong.</p></div><Link to="/dashboard" className="inline-flex items-center gap-1 rounded-full px-3 py-2 text-xs font-semibold text-slate-600 hover:bg-white/70"><ArrowLeft size={14} />Dashboard</Link></div>
 
     <div className="mb-4"><ScorecardStrip /></div>
@@ -142,10 +154,15 @@ export default function PredictionPage() {
     <section className="grid grid-cols-1 items-start gap-4 xl:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]" aria-label="Prediction controls and results">
       <GlassCard className="p-5 sm:p-6">
         <div className="flex items-center gap-2"><Sparkles size={17} className="text-emerald-700" /><h2 className="text-lg font-semibold text-slate-900">Create an estimate</h2></div>
-        <label className="mt-5 block text-xs font-semibold text-slate-600">Nifty 50 symbol
-          <input list="prediction-stocks" value={symbolSearch || symbol} onFocus={() => setSymbolSearch("")} onChange={(event) => { const value = event.target.value.toUpperCase(); setSymbolSearch(value); if (validSymbols.has(value)) setSymbol(value); }} onBlur={() => { if (validSymbols.has(symbolSearch.trim().toUpperCase())) setSymbol(symbolSearch.trim().toUpperCase()); setSymbolSearch(""); }} aria-label="Search Nifty 50 stocks" placeholder="Search symbol or company" className="mt-1.5 block h-11 w-full rounded-xl border border-slate-200 bg-white/75 px-3 text-sm font-medium text-slate-800 outline-none focus:border-emerald-300 focus:ring-2 focus:ring-emerald-100" />
-          <datalist id="prediction-stocks">{stocks.map((stockRow) => <option key={stockRow.symbol} value={stockRow.symbol}>{stockRow.name}</option>)}</datalist>
-        </label>
+        <div ref={stockPickerRef} className="relative mt-5"><label className="block text-xs font-semibold text-slate-600">Nifty 50 stock
+          <input value={symbolSearch || symbol} onFocus={() => { setSymbolSearch(""); setStockPickerOpen(true); }} onChange={(event) => { setSymbolSearch(event.target.value); setStockPickerOpen(true); }} onKeyDown={(event) => { if (event.key === "Escape") setStockPickerOpen(false); }} aria-label="Search Nifty 50 stocks" placeholder="Search symbol or company" className="mt-1.5 block h-11 w-full rounded-xl border border-slate-200 bg-white/75 px-3 text-sm font-medium text-slate-800 outline-none focus:border-emerald-300 focus:ring-2 focus:ring-emerald-100" /></label>
+          {stockPickerOpen && <div className="absolute left-0 right-0 top-[4.5rem] z-20 max-h-64 overflow-y-auto rounded-xl border border-slate-200 bg-white p-1 shadow-xl">
+            {stockQuery.isLoading && <p className="px-3 py-3 text-xs text-slate-500">Loading available stocks…</p>}
+            {stockQuery.isError && <p className="px-3 py-3 text-xs text-red-700">Stock list unavailable. Retry below.</p>}
+            {!stockQuery.isLoading && !stockQuery.isError && filteredStocks.map((stockRow) => <button type="button" key={stockRow.symbol} onMouseDown={(event) => event.preventDefault()} onClick={() => { setSymbol(stockRow.symbol); setSymbolSearch(""); setStockPickerOpen(false); }} className="flex w-full items-center justify-between rounded-lg px-3 py-2 text-left hover:bg-emerald-50"><span><b className="block text-sm text-slate-800">{stockRow.symbol}</b><span className="block text-[11px] text-slate-500">{stockRow.name || "Nifty 50 stock"}</span></span><span className="text-[10px] text-emerald-700">Select</span></button>)}
+            {!stockQuery.isLoading && !stockQuery.isError && filteredStocks.length === 0 && <p className="px-3 py-3 text-xs text-slate-500">No matching stocks found.</p>}
+          </div>}
+        </div>
         {stockQuery.isLoading && <Skeleton className="mt-2 h-3 w-40" />}
         {stockQuery.isError && <p className="mt-2 text-xs text-red-700">Stock list unavailable. <button type="button" onClick={() => stockQuery.refetch()} className="font-semibold underline">Retry</button></p>}
         {!symbolValid && !stockQuery.isLoading && <p className="mt-2 text-xs text-amber-800">Choose a symbol from the Nifty 50 list to continue.</p>}

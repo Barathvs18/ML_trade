@@ -4,6 +4,7 @@ from uuid import uuid4
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from starlette.middleware.sessions import SessionMiddleware
 from fastapi.responses import JSONResponse
 from app.config import settings
 from app.db import connect_db, close_db
@@ -47,6 +48,8 @@ async def lifespan(app: FastAPI):
 
 def create_app() -> FastAPI:
     app = FastAPI(title="AlgoPredict API", version="1.0.0", lifespan=lifespan)
+    app.add_middleware(SessionMiddleware, secret_key=settings.jwt_secret, same_site=settings.cookie_samesite,
+                       https_only=settings.cookie_secure)
     app.add_middleware(CORSMiddleware, allow_origins=[settings.frontend_url], allow_credentials=True,
                        allow_methods=["*"], allow_headers=["*"])
     from app.modules.auth.router import router as auth_router

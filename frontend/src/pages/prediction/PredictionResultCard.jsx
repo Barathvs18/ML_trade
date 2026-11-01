@@ -35,6 +35,7 @@ export default function PredictionResultCard({ prediction, loading, error, onRet
   const pending = prediction?.status === "pending";
   const reveal = getPredictionReveal(prediction);
   const countdown = useCountdown(prediction?.resolve_at, pending);
+  const countdownExpired = pending && countdown !== "--:--:--" && countdown === "00:00:00";
 
   if (loading) return <GlassCard className="p-5 sm:p-6"><Skeleton className="h-7 w-56" /><Skeleton className="mt-4 h-24 w-full" /><Skeleton className="mt-3 h-5 w-40" /></GlassCard>;
   if (error) return <GlassCard className="p-5 sm:p-6"><ErrorState title="Prediction detail unavailable" description="We couldn't load this prediction. Your history remains unchanged." onRetry={onRetry} /></GlassCard>;
@@ -55,7 +56,7 @@ export default function PredictionResultCard({ prediction, loading, error, onRet
       <div><p className="text-[10px] text-slate-400">Made at (IST)</p><p className="mt-1 text-xs font-semibold text-slate-700">{formatIstDateTime(prediction.made_at)}</p></div>
     </div>
     <p className="mt-3 text-xs text-slate-500">Model estimate, not advice. Experimental output can be wrong.</p>
-    {pending && <div className="mt-4 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-amber-100 bg-amber-50/60 px-3 py-2.5" role="status"><span className="text-xs font-medium text-amber-900">Outcome pending. No actual price direction is shown.</span><span className="font-mono text-sm font-semibold tabular-nums text-amber-900">{countdown}</span></div>}
+    {pending && <div className="mt-4 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-amber-200 bg-amber-50/80 px-3 py-2.5" role="status" aria-live="polite"><span className="text-xs font-medium text-amber-900"><span className="mr-2 inline-flex rounded-full bg-amber-200 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide">Pending</span>{countdownExpired ? "Awaiting outcome verification. The backend is checking the final market result." : "Outcome pending. Actual price direction will be revealed when the horizon ends."}</span><span aria-label={`Outcome timer ${countdown}`} className="font-mono text-sm font-semibold tabular-nums text-amber-900">{countdown}</span></div>}
     {reveal && <div className="prediction-reveal mt-4 rounded-2xl border border-slate-200 bg-white/70 p-4" aria-live="polite">
       <div className="flex flex-wrap items-center justify-between gap-3"><div><p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Resolved outcome</p><p className="mt-1 text-base font-semibold text-slate-900">Predicted {label} · Actual {directionContent[reveal.actualDirection]?.label ?? reveal.actualDirection}</p></div><Badge kind={reveal.correct ? "positive" : "negative"}>{reveal.correct ? "Correct" : "Wrong"}</Badge></div>
       {Number.isFinite(Number(reveal.actualReturnPct)) && <p className="mt-2 text-sm text-slate-700">Actual return: <span className={`font-semibold ${Number(reveal.actualReturnPct) >= 0 ? "text-emerald-700" : "text-red-600"}`}>{Number(reveal.actualReturnPct) >= 0 ? "+" : ""}{Number(reveal.actualReturnPct).toFixed(3)}%</span></p>}

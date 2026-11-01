@@ -4,9 +4,17 @@ from app.config import settings
 from app.db import get_db
 
 oauth = OAuth()
-oauth.register(name="google", client_id=settings.google_client_id, client_secret=settings.google_client_secret,
-               server_metadata_url="https://accounts.google.com/.well-known/openid-configuration",
-               client_kwargs={"scope": "openid email profile"})
+oauth.register(
+    name="google",
+    client_id=settings.google_client_id,
+    client_secret=settings.google_client_secret,
+    authorize_url="https://accounts.google.com/o/oauth2/v2/auth",
+    access_token_url="https://oauth2.googleapis.com/token",
+    userinfo_endpoint="https://openidconnect.googleapis.com/v1/userinfo",
+    jwks_uri="https://www.googleapis.com/oauth2/v3/certs",
+    issuer="https://accounts.google.com",
+    client_kwargs={"scope": "openid email profile"},
+)
 
 async def upsert_google_user(profile: dict) -> tuple[dict, bool]:
     db = get_db()
